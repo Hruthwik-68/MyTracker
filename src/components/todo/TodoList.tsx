@@ -9,12 +9,25 @@ const TodoList = () => {
   const [dsaTodos, setDsaTodos] = useState<DailyTodo[]>([])
   const [newCommonTodo, setNewCommonTodo] = useState('')
   const [newDsaTodo, setNewDsaTodo] = useState('')
-  const [commonPriority, setCommonPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('LOW')
+  const [commonPriority, setCommonPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
+  const [dsaPriority, setDsaPriority] = useState<'LOW' | 'MEDIUM' | 'HIGH'>('MEDIUM')
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     loadTodos()
   }, [user])
+
+  const sortByPriority = (todos: DailyTodo[]) => {
+    const priorityOrder = { HIGH: 3, MEDIUM: 2, LOW: 1 }
+    return [...todos].sort((a, b) => {
+      // First sort by completion status (incomplete first)
+      if (a.is_done !== b.is_done) {
+        return a.is_done ? 1 : -1
+      }
+      // Then sort by priority (high to low)
+      return priorityOrder[b.priority] - priorityOrder[a.priority]
+    })
+  }
 
   const loadTodos = async () => {
     if (!user) return
@@ -30,8 +43,10 @@ const TodoList = () => {
         .order('created_at', { ascending: true })
 
       if (data) {
-        setCommonTodos(data.filter(t => t.category === 'COMMON'))
-        setDsaTodos(data.filter(t => t.category === 'DSA'))
+        const common = data.filter(t => t.category === 'COMMON')
+        const dsa = data.filter(t => t.category === 'DSA')
+        setCommonTodos(sortByPriority(common))
+        setDsaTodos(sortByPriority(dsa))
       }
     } catch (error) {
       console.error('Error loading todos:', error)
@@ -43,6 +58,7 @@ const TodoList = () => {
   const addTodo = async (category: 'COMMON' | 'DSA') => {
     if (!user) return
     const task = category === 'COMMON' ? newCommonTodo : newDsaTodo
+    const priority = category === 'COMMON' ? commonPriority : dsaPriority
     if (!task.trim()) return
 
     try {
@@ -53,7 +69,7 @@ const TodoList = () => {
           user_id: user.id,
           category,
           task: task.trim(),
-          priority: category === 'COMMON' ? commonPriority : 'LOW',
+          priority,
           is_done: false,
           date: today
         }])
@@ -62,10 +78,10 @@ const TodoList = () => {
 
       if (data) {
         if (category === 'COMMON') {
-          setCommonTodos([...commonTodos, data])
+          setCommonTodos(sortByPriority([...commonTodos, data]))
           setNewCommonTodo('')
         } else {
-          setDsaTodos([...dsaTodos, data])
+          setDsaTodos(sortByPriority([...dsaTodos, data]))
           setNewDsaTodo('')
         }
       }
@@ -82,13 +98,15 @@ const TodoList = () => {
         .eq('id', todo.id)
 
       if (todo.category === 'COMMON') {
-        setCommonTodos(commonTodos.map(t => 
+        const updated = commonTodos.map(t => 
           t.id === todo.id ? { ...t, is_done: !t.is_done } : t
-        ))
+        )
+        setCommonTodos(sortByPriority(updated))
       } else {
-        setDsaTodos(dsaTodos.map(t => 
+        const updated = dsaTodos.map(t => 
           t.id === todo.id ? { ...t, is_done: !t.is_done } : t
-        ))
+        )
+        setDsaTodos(sortByPriority(updated))
       }
     } catch (error) {
       console.error('Error toggling todo:', error)
@@ -109,85 +127,168 @@ const TodoList = () => {
     }
   }
 
+  const updatePriority = async (todo: DailyTodo, newPriority: 'LOW' | 'MEDIUM' | 'HIGH') => {
+    try {
+      await supabase
+        .from('daily_todos')
+        .update({ priority: newPriority })
+        .eq('id', todo.id)
+
+      if (todo.category === 'COMMON') {
+        const updated = commonTodos.map(t => 
+          t.id === todo.id ? { ...t, priority: newPriority } : t
+        )
+        setCommonTodos(sortByPriority(updated))
+      } else {
+        const updated = dsaTodos.map(t => 
+          t.id === todo.id ? { ...t, priority: newPriority } : t
+        )
+        setDsaTodos(sortByPriority(updated))
+      }
+    } catch (error) {
+      console.error('Error updating priority:', error)
+    }
+  }
+
+  const getPriorityColor = (priority: 'LOW' | 'MEDIUM' | 'HIGH') => {
+    switch (priority) {
+      case 'HIGH': return { bg: '#fee2e2', color: '#dc2626', border: '#fca5a5' }
+      case 'MEDIUM': return { bg: '#fef3c7', color: '#d97706', border: '#fcd34d' }
+      case 'LOW': return { bg: '#dbeafe', color: '#2563eb', border: '#93c5fd' }
+    }
+  }
+
   const renderTodoList = (todos: DailyTodo[], category: 'COMMON' | 'DSA') => (
     <div style={{ marginTop: '1rem' }}>
       {todos.length === 0 ? (
-        <p style={{ color: '#999', fontStyle: 'italic' }}>No todos yet</p>
+        <p style={{ color: '#999', fontStyle: 'italic', textAlign: 'center', padding: '2rem' }}>No todos yet</p>
       ) : (
-        todos.map(todo => (
-          <div
-            key={todo.id}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '1rem',
-              padding: '0.75rem',
-              background: todo.is_done ? '#f0f0f0' : 'white',
-              border: '1px solid #ddd',
-              borderRadius: '4px',
-              marginBottom: '0.5rem'
-            }}
-          >
-            <input
-              type="checkbox"
-              checked={todo.is_done}
-              onChange={() => toggleTodo(todo)}
-              style={{ cursor: 'pointer', width: '18px', height: '18px' }}
-            />
-            <span style={{
-              flex: 1,
-              textDecoration: todo.is_done ? 'line-through' : 'none',
-              color: todo.is_done ? '#999' : '#333'
-            }}>
-              {todo.task}
-            </span>
-            {category === 'COMMON' && (
-              <span style={{
-                padding: '0.25rem 0.5rem',
-                borderRadius: '4px',
-                fontSize: '0.75rem',
-                background: todo.priority === 'HIGH' ? '#fee' : todo.priority === 'MEDIUM' ? '#ffeaa7' : '#dfe6e9',
-                color: todo.priority === 'HIGH' ? '#c33' : todo.priority === 'MEDIUM' ? '#d63031' : '#666'
-              }}>
-                {todo.priority}
-              </span>
-            )}
-            <button
-              onClick={() => deleteTodo(todo.id, category)}
+        todos.map(todo => {
+          const priorityColors = getPriorityColor(todo.priority)
+          return (
+            <div
+              key={todo.id}
               style={{
-                background: '#ff6b6b',
-                color: 'white',
-                border: 'none',
-                padding: '0.5rem',
-                borderRadius: '4px',
-                cursor: 'pointer'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem',
+                padding: '1rem',
+                background: todo.is_done ? '#f0f0f0' : 'white',
+                border: `2px solid ${todo.is_done ? '#ddd' : priorityColors.border}`,
+                borderRadius: '12px',
+                marginBottom: '0.75rem',
+                transition: 'all 0.3s ease',
+                boxShadow: todo.is_done ? 'none' : '0 2px 8px rgba(0,0,0,0.05)'
+              }}
+              onMouseEnter={(e) => {
+                if (!todo.is_done) {
+                  e.currentTarget.style.transform = 'translateX(5px)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateX(0)'
               }}
             >
-              🗑️
-            </button>
-          </div>
-        ))
+              <input
+                type="checkbox"
+                checked={todo.is_done}
+                onChange={() => toggleTodo(todo)}
+                style={{ cursor: 'pointer', width: '22px', height: '22px', accentColor: '#4caf50' }}
+              />
+              <span style={{
+                flex: 1,
+                textDecoration: todo.is_done ? 'line-through' : 'none',
+                color: todo.is_done ? '#999' : '#333',
+                fontWeight: '500',
+                fontSize: '1rem'
+              }}>
+                {todo.task}
+              </span>
+              
+              {/* Priority Selector */}
+              <select
+                value={todo.priority}
+                onChange={(e) => updatePriority(todo, e.target.value as 'LOW' | 'MEDIUM' | 'HIGH')}
+                disabled={todo.is_done}
+                style={{
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  fontSize: '0.875rem',
+                  fontWeight: '600',
+                  border: `2px solid ${priorityColors.border}`,
+                  background: priorityColors.bg,
+                  color: priorityColors.color,
+                  cursor: todo.is_done ? 'not-allowed' : 'pointer',
+                  opacity: todo.is_done ? 0.5 : 1
+                }}
+              >
+                <option value="HIGH">🔴 HIGH</option>
+                <option value="MEDIUM">🟡 MEDIUM</option>
+                <option value="LOW">🟢 LOW</option>
+              </select>
+
+              <button
+                onClick={() => deleteTodo(todo.id, category)}
+                style={{
+                  background: '#ff6b6b',
+                  color: 'white',
+                  border: 'none',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
+              >
+                🗑️
+              </button>
+            </div>
+          )
+        })
       )}
     </div>
   )
 
-  if (loading) return <p>Loading todos...</p>
+  if (loading) return (
+    <div style={{ 
+      display: 'flex', 
+      justifyContent: 'center', 
+      alignItems: 'center', 
+      minHeight: '400px',
+      flexDirection: 'column',
+      gap: '1rem'
+    }}>
+      <div style={{
+        width: '60px',
+        height: '60px',
+        border: '6px solid rgba(102, 126, 234, 0.2)',
+        borderTop: '6px solid #667eea',
+        borderRadius: '50%',
+        animation: 'spin 1s linear infinite'
+      }}></div>
+      <p style={{ color: '#667eea', fontSize: '1.2rem', fontWeight: '600' }}>Loading todos...</p>
+    </div>
+  )
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <h1 style={{ marginBottom: '2rem', color: '#333' }}>📝 Daily Todo</h1>
+      <h1 style={{ marginBottom: '2rem', color: '#333', fontSize: '2.5rem' }}>📝 Daily Todo</h1>
 
       {/* Common Todos */}
       <div style={{
         background: 'white',
-        padding: '1.5rem',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-        marginBottom: '2rem'
+        padding: '2rem',
+        borderRadius: '16px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        marginBottom: '2rem',
+        border: '1px solid #f0f0f0'
       }}>
-        <h2 style={{ marginBottom: '1rem', color: '#667eea' }}>💼 Common Tasks</h2>
+        <h2 style={{ marginBottom: '1.5rem', color: '#667eea', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span>💼</span> Common Tasks
+        </h2>
         
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={newCommonTodo}
@@ -196,37 +297,46 @@ const TodoList = () => {
             placeholder="Add a common task..."
             style={{
               flex: 1,
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              minWidth: '250px',
+              padding: '1rem',
+              border: '2px solid #ddd',
+              borderRadius: '12px',
+              fontSize: '1rem'
             }}
           />
           <select
             value={commonPriority}
             onChange={(e) => setCommonPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH')}
             style={{
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              padding: '1rem',
+              border: '2px solid #ddd',
+              borderRadius: '12px',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer'
             }}
           >
-            <option value="LOW">Low</option>
-            <option value="MEDIUM">Medium</option>
-            <option value="HIGH">High</option>
+            <option value="HIGH">🔴 HIGH</option>
+            <option value="MEDIUM">🟡 MEDIUM</option>
+            <option value="LOW">🟢 LOW</option>
           </select>
           <button
             onClick={() => addTodo('COMMON')}
             style={{
-              padding: '0.75rem 1.5rem',
+              padding: '1rem 2rem',
               background: '#667eea',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: '12px',
               cursor: 'pointer',
-              fontWeight: '600'
+              fontWeight: '700',
+              fontSize: '1rem',
+              transition: 'all 0.3s ease'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            Add
+            ➕ Add
           </button>
         </div>
 
@@ -236,13 +346,16 @@ const TodoList = () => {
       {/* DSA Todos */}
       <div style={{
         background: 'white',
-        padding: '1.5rem',
-        borderRadius: '8px',
-        boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+        padding: '2rem',
+        borderRadius: '16px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        border: '1px solid #f0f0f0'
       }}>
-        <h2 style={{ marginBottom: '1rem', color: '#667eea' }}>🧠 DSA Plan</h2>
+        <h2 style={{ marginBottom: '1.5rem', color: '#667eea', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <span>🧠</span> DSA Plan
+        </h2>
         
-        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', gap: '1rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <input
             type="text"
             value={newDsaTodo}
@@ -251,29 +364,58 @@ const TodoList = () => {
             placeholder="Add DSA task for next day..."
             style={{
               flex: 1,
-              padding: '0.75rem',
-              border: '1px solid #ddd',
-              borderRadius: '4px'
+              minWidth: '250px',
+              padding: '1rem',
+              border: '2px solid #ddd',
+              borderRadius: '12px',
+              fontSize: '1rem'
             }}
           />
+          <select
+            value={dsaPriority}
+            onChange={(e) => setDsaPriority(e.target.value as 'LOW' | 'MEDIUM' | 'HIGH')}
+            style={{
+              padding: '1rem',
+              border: '2px solid #ddd',
+              borderRadius: '12px',
+              fontSize: '1rem',
+              fontWeight: '600',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="HIGH">🔴 HIGH</option>
+            <option value="MEDIUM">🟡 MEDIUM</option>
+            <option value="LOW">🟢 LOW</option>
+          </select>
           <button
             onClick={() => addTodo('DSA')}
             style={{
-              padding: '0.75rem 1.5rem',
+              padding: '1rem 2rem',
               background: '#667eea',
               color: 'white',
               border: 'none',
-              borderRadius: '4px',
+              borderRadius: '12px',
               cursor: 'pointer',
-              fontWeight: '600'
+              fontWeight: '700',
+              fontSize: '1rem',
+              transition: 'all 0.3s ease'
             }}
+            onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
+            onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
           >
-            Add
+            ➕ Add
           </button>
         </div>
 
         {renderTodoList(dsaTodos, 'DSA')}
       </div>
+
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
 }
