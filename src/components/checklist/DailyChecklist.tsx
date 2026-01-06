@@ -96,103 +96,103 @@ export const DailyChecklist = () => {
   }
 
   const createDefaultItems = async () => {
-    if (!user) return
+  if (!user) return
 
-    const { data: existing } = await supabase
-      .from('checklist_items')
-      .select('id')
-      .eq('user_id', user.id)
-      .limit(1)
+  const { data: existing } = await supabase
+    .from('checklist_items')
+    .select('id')
+    .eq('user_id', user.id)
+    .limit(1)
 
-    if (existing && existing.length > 0) {
-      return
-    }
-
-    const defaultItems = [
-      { category: 'ROUTINE', name: '☀️ Wake up', order_index: 1 },
-      { category: 'ROUTINE', name: '🪥 Brush', order_index: 2 },
-      { category: 'ROUTINE', name: '💦 Splash water', order_index: 3 },
-      { category: 'ROUTINE', name: '📚 Revise while brushing', order_index: 4 },
-      { category: 'ROUTINE', name: '🏃 Treadmill (1 hr @ 8km/h)', order_index: 5 },
-      { category: 'ROUTINE', name: '💪 Gym - Weight Training (1 hr)', order_index: 6 },
-      { category: 'ROUTINE', name: '🧠 Study DSA/CP', order_index: 7 },
-      { category: 'ROUTINE', name: '💻 Work Block (9 AM - 6 PM)', order_index: 8 },
-      { category: 'ROUTINE', name: '📖 LLD Study (0.5-1 hr)', order_index: 9 },
-      { category: 'ROUTINE', name: '🛌 Sleep 8 hours', order_index: 10 },
-      
-      { category: 'SUPPLEMENT', name: '🔥 Hot water (morning)', order_index: 11 },
-      { category: 'SUPPLEMENT', name: '💊 Glutathione (alternate days)', order_index: 12 },
-      { category: 'SUPPLEMENT', name: '🍊 Vitamin C (alternate days)', order_index: 13 },
-      { category: 'SUPPLEMENT', name: '✨ Skin care tablet (morning)', order_index: 14 },
-      { category: 'SUPPLEMENT', name: '🌙 Skin care tablet (night)', order_index: 15 },
-      { category: 'SUPPLEMENT', name: '⚡ Creatine 3-5g', order_index: 16 },
-      { category: 'SUPPLEMENT', name: '🍵 Green tea (evening)', order_index: 17 },
-      { category: 'SUPPLEMENT', name: '💊 Multivitamin (evening)', order_index: 18 },
-      { category: 'SUPPLEMENT', name: '🌰 Flaxseed 1 spoon', order_index: 19 },
-      
-      // Diet items with nutrition per gram/unit
-      { 
-        category: 'DIET', 
-        name: '💧 Water (litres)', 
-        order_index: 20,
-        metadata: { unit: 'litre', calories: 0, protein: 0, carbs: 0, fiber: 0, fats: 0 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🍗 Chicken Breast (grams)', 
-        order_index: 21,
-        metadata: { unit: 'gram', calories: 1.2, protein: 0.225, carbs: 0.026, fiber: 0, fats: 0.002 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🥚 Eggs (units)', 
-        order_index: 22,
-        metadata: { unit: 'unit', calories: 68.25, protein: 4.675, carbs: 2.3, fiber: 0, fats: 2 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🌱 Sprouts (grams)', 
-        order_index: 23,
-        metadata: { unit: 'gram', calories: 0.3, protein: 0.03, carbs: 0.002, fiber: 0.018, fats: 0.06 }
-      },
-      { 
-        category: 'DIET', 
-        name: '💪 Whey Protein (scoops)', 
-        order_index: 24,
-        metadata: { unit: 'scoop', calories: 135, protein: 22, carbs: 2.1, fiber: 0.5, fats: 7 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🥛 Curd (grams)', 
-        order_index: 25,
-        metadata: { unit: 'gram', calories: 0.6, protein: 0.031, carbs: 0.04, fiber: 0, fats: 0.03 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🍚 Boiled Rice (grams)', 
-        order_index: 26,
-        metadata: { unit: 'gram', calories: 1.08, protein: 0.018, carbs: 0.24, fiber: 0.01, fats: 0.002 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🫘 Soya Chunks (grams)', 
-        order_index: 27,
-        metadata: { unit: 'gram', calories: 3.45, protein: 0.518, carbs: 0.009, fiber: 0.127, fats: 0.327 }
-      },
-    ]
-
-    const itemsToInsert = defaultItems.map(item => ({
-      user_id: user.id,
-      category: item.category,
-      name: item.name,
-      is_persistent: true,
-      order_index: item.order_index,
-      metadata: item.metadata || null
-    }))
-
-    await supabase.from('checklist_items').insert(itemsToInsert)
-    await loadChecklistData()
+  if (existing && existing.length > 0) {
+    return
   }
+
+  const defaultItems = [
+    { category: 'ROUTINE', name: '☀️ Wake up', order_index: 1, metadata: null },
+    { category: 'ROUTINE', name: '🪥 Brush', order_index: 2, metadata: null },
+    { category: 'ROUTINE', name: '💦 Splash water', order_index: 3, metadata: null },
+    { category: 'ROUTINE', name: '📚 Revise while brushing', order_index: 4, metadata: null },
+    { category: 'ROUTINE', name: '🏃 Treadmill (1 hr @ 8km/h)', order_index: 5, metadata: null },
+    { category: 'ROUTINE', name: '💪 Gym - Weight Training (1 hr)', order_index: 6, metadata: null },
+    { category: 'ROUTINE', name: '🧠 Study DSA/CP', order_index: 7, metadata: null },
+    { category: 'ROUTINE', name: '💻 Work Block (9 AM - 6 PM)', order_index: 8, metadata: null },
+    { category: 'ROUTINE', name: '📖 LLD Study (0.5-1 hr)', order_index: 9, metadata: null },
+    { category: 'ROUTINE', name: '🛌 Sleep 8 hours', order_index: 10, metadata: null },
+    
+    { category: 'SUPPLEMENT', name: '🔥 Hot water (morning)', order_index: 11, metadata: null },
+    { category: 'SUPPLEMENT', name: '💊 Glutathione (alternate days)', order_index: 12, metadata: null },
+    { category: 'SUPPLEMENT', name: '🍊 Vitamin C (alternate days)', order_index: 13, metadata: null },
+    { category: 'SUPPLEMENT', name: '✨ Skin care tablet (morning)', order_index: 14, metadata: null },
+    { category: 'SUPPLEMENT', name: '🌙 Skin care tablet (night)', order_index: 15, metadata: null },
+    { category: 'SUPPLEMENT', name: '⚡ Creatine 3-5g', order_index: 16, metadata: null },
+    { category: 'SUPPLEMENT', name: '🍵 Green tea (evening)', order_index: 17, metadata: null },
+    { category: 'SUPPLEMENT', name: '💊 Multivitamin (evening)', order_index: 18, metadata: null },
+    { category: 'SUPPLEMENT', name: '🌰 Flaxseed 1 spoon', order_index: 19, metadata: null },
+    
+    // Diet items with nutrition per gram/unit
+    { 
+      category: 'DIET', 
+      name: '💧 Water (litres)', 
+      order_index: 20,
+      metadata: { unit: 'litre', calories: 0, protein: 0, carbs: 0, fiber: 0, fats: 0 }
+    },
+    { 
+      category: 'DIET', 
+      name: '🍗 Chicken Breast (grams)', 
+      order_index: 21,
+      metadata: { unit: 'gram', calories: 1.2, protein: 0.225, carbs: 0.026, fiber: 0, fats: 0.002 }
+    },
+    { 
+      category: 'DIET', 
+      name: '🥚 Eggs (units)', 
+      order_index: 22,
+      metadata: { unit: 'unit', calories: 68.25, protein: 4.675, carbs: 2.3, fiber: 0, fats: 2 }
+    },
+    { 
+      category: 'DIET', 
+      name: '🌱 Sprouts (grams)', 
+      order_index: 23,
+      metadata: { unit: 'gram', calories: 0.3, protein: 0.03, carbs: 0.002, fiber: 0.018, fats: 0.06 }
+    },
+    { 
+      category: 'DIET', 
+      name: '💪 Whey Protein (scoops)', 
+      order_index: 24,
+      metadata: { unit: 'scoop', calories: 135, protein: 22, carbs: 2.1, fiber: 0.5, fats: 7 }
+    },
+    { 
+      category: 'DIET', 
+      name: '🥛 Curd (grams)', 
+      order_index: 25,
+      metadata: { unit: 'gram', calories: 0.6, protein: 0.031, carbs: 0.04, fiber: 0, fats: 0.03 }
+    },
+    { 
+      category: 'DIET', 
+      name: '🍚 Boiled Rice (grams)', 
+      order_index: 26,
+      metadata: { unit: 'gram', calories: 1.08, protein: 0.018, carbs: 0.24, fiber: 0.01, fats: 0.002 }
+    },
+    { 
+      category: 'DIET', 
+      name: '🫘 Soya Chunks (grams)', 
+      order_index: 27,
+      metadata: { unit: 'gram', calories: 3.45, protein: 0.518, carbs: 0.009, fiber: 0.127, fats: 0.327 }
+    },
+  ]
+
+  const itemsToInsert = defaultItems.map(item => ({
+    user_id: user.id,
+    category: item.category,
+    name: item.name,
+    is_persistent: true,
+    order_index: item.order_index,
+    metadata: item.metadata
+  }))
+
+  await supabase.from('checklist_items').insert(itemsToInsert)
+  await loadChecklistData()
+}
 
   const toggleChecklistItem = async (item: ChecklistItem) => {
     if (!user) return
