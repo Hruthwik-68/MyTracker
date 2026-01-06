@@ -443,7 +443,7 @@ export const DailyChecklist = () => {
     const log = getLogForItem(item.id)
 
     if (item.category === 'DIET') {
-      const value = parseFloat(log?.value || '0')
+      const _value = parseFloat(log?.value || '0')
       const metadata = item.metadata as any
       const unit = metadata?.unit || 'gram'
       
