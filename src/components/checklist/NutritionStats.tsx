@@ -10,7 +10,6 @@ interface NutritionStatsProps {
 
 export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
   const { user } = useAuth()
-  const [stats, setStats] = useState<DailyStat | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -23,6 +22,7 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     try {
       const today = new Date().toISOString().split('T')[0]
       
+      // Just ensure stats row exists
       const { data } = await supabase
         .from('daily_stats')
         .select('*')
@@ -30,19 +30,13 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
         .eq('date', today)
         .single()
 
-      if (data) {
-        setStats(data)
-      } else {
-        const { data: newStats } = await supabase
+      if (!data) {
+        await supabase
           .from('daily_stats')
           .insert([{
             user_id: user.id,
             date: today
           }])
-          .select()
-          .single()
-        
-        setStats(newStats)
       }
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -50,6 +44,8 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
       setLoading(false)
     }
   }
+
+  // ... rest stays the same
 
   // Calculate nutrition from diet logs
   const calculateNutrition = () => {
