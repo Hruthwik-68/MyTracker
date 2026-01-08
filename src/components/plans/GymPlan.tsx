@@ -1,201 +1,319 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
 
 export const GymPlan = () => {
-  const [content, setContent] = useState(`💪 COMPLETE GYM & FITNESS PLAN
+  const { user } = useAuth()
+  const [content, setContent] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+
+  useEffect(() => {
+    loadPlan()
+  }, [user])
+
+  const loadPlan = async () => {
+    if (!user) return
+    setLoading(true)
+    try {
+      const { data } = await supabase
+        .from('plans')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('type', 'GYM')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single()
+
+      if (data && data.content) {
+        setContent(data.content)
+      }
+    } catch (error) {
+      console.error('Error loading gym plan:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const savePlan = async () => {
+    if (!user) return
+    setSaving(true)
+    try {
+      const { data: existing } = await supabase
+        .from('plans')
+        .select('id')
+        .eq('user_id', user.id)
+        .eq('type', 'GYM')
+        .single()
+
+      if (existing) {
+        await supabase
+          .from('plans')
+          .update({ content, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      } else {
+        await supabase
+          .from('plans')
+          .insert([{
+            user_id: user.id,
+            type: 'GYM',
+            title: 'Complete Gym Plan',
+            content
+          }])
+      }
+
+      alert('✅ Gym Plan saved successfully!')
+      setIsEditing(false)
+    } catch (error) {
+      console.error('Error saving gym plan:', error)
+      alert('❌ Failed to save gym plan')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const gymMasterPlan = `💪 COMPLETE GYM WORKOUT PLAN
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎯 DAILY WORKOUT STRUCTURE
+🎯 WEEKLY WORKOUT STRUCTURE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⏱️ TOTAL WORKOUT TIME: 2.5 hours daily
+Daily Format:
+- 1 hour Weight Training (2 body parts)
+- 30 min Core/Forearms (alternate days)
+- 1 hour Treadmill @ 8 km/h
 
-1️⃣ WEIGHT TRAINING: 1 hour
-   • Focus: 2 body parts each day
-   • Progressive overload principle
-   • 4-5 exercises per body part
-   • 3-4 sets × 8-12 reps
-
-2️⃣ CORE & FOREARMS: 30 minutes (Alternate Days)
-   • Monday/Wednesday/Friday: Core
-   • Tuesday/Thursday/Saturday: Forearms
-   • Sunday: Rest
-
-3️⃣ CARDIO - TREADMILL: 1 hour
-   • Speed: 8 km/h (steady pace)
-   • Incline: 0-2% for fat burn
-   • Can split: 30 min morning + 30 min evening
-   • Burn: ~400-500 calories
+Total Daily Time: ~2.5 hours
 
 
-📅 WEEKLY TRAINING SPLIT
+📅 MONDAY - CHEST + TRICEPS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔴 MONDAY - Chest + Triceps + Core
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 CHEST:
-   • Barbell Bench Press: 4×8-10
-   • Incline Dumbbell Press: 3×10-12
-   • Cable Flyes: 3×12-15
-   • Push-ups: 3×failure
+1. Flat Bench Press: 4×8-10
+2. Incline Dumbbell Press: 4×10-12
+3. Cable Flyes: 3×12-15
+4. Dips (Chest focus): 3×10-12
 
 TRICEPS:
-   • Close Grip Bench: 3×10-12
-   • Tricep Dips: 3×10-15
-   • Cable Pushdowns: 3×12-15
-   • Overhead Extension: 3×12
+1. Close Grip Bench Press: 4×8-10
+2. Overhead Tricep Extension: 3×12-15
+3. Tricep Pushdowns: 3×12-15
+4. Diamond Push-ups: 3×AMRAP
 
-CORE:
-   • Planks: 3×60 sec
-   • Crunches: 3×25
-   • Leg Raises: 3×15
-   • Russian Twists: 3×30
+CORE: Planks + Crunches
+CARDIO: Treadmill 1 hour @ 8 km/h
 
 
-🔵 TUESDAY - Back + Biceps + Forearms
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 TUESDAY - BACK + BICEPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 BACK:
-   • Deadlifts: 4×6-8
-   • Pull-ups: 3×max
-   • Barbell Rows: 3×10-12
-   • Lat Pulldowns: 3×12-15
-   • Face Pulls: 3×15
+1. Deadlifts: 4×6-8
+2. Pull-ups/Lat Pulldowns: 4×8-12
+3. Barbell Rows: 4×10-12
+4. Seated Cable Rows: 3×12-15
+5. Face Pulls: 3×15-20
 
 BICEPS:
-   • Barbell Curls: 3×10-12
-   • Hammer Curls: 3×12-15
-   • Preacher Curls: 3×12
-   • Cable Curls: 3×15
+1. Barbell Curls: 4×10-12
+2. Hammer Curls: 3×12-15
+3. Cable Curls: 3×12-15
+4. Concentration Curls: 3×12-15
 
-FOREARMS:
-   • Wrist Curls: 3×20
-   • Reverse Curls: 3×15
-   • Farmer's Walk: 3×30 sec
-   • Grip Squeezes: 3×max
+FOREARMS: Wrist Curls + Reverse Curls
+CARDIO: Treadmill 1 hour @ 8 km/h
 
 
-🟢 WEDNESDAY - Legs + Shoulders + Core
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LEGS:
-   • Squats: 4×8-10
-   • Leg Press: 3×12-15
-   • Leg Curls: 3×12-15
-   • Leg Extensions: 3×12-15
-   • Calf Raises: 4×20
+📅 WEDNESDAY - SHOULDERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SHOULDERS:
-   • Military Press: 4×8-10
-   • Lateral Raises: 3×12-15
-   • Front Raises: 3×12-15
-   • Rear Delt Flyes: 3×15
+1. Overhead Press (Barbell): 4×8-10
+2. Dumbbell Lateral Raises: 4×12-15
+3. Front Raises: 3×12-15
+4. Reverse Flyes: 3×12-15
+5. Shrugs: 4×15-20
+6. Arnold Press: 3×10-12
 
-CORE:
-   • Hanging Knee Raises: 3×15
-   • Ab Wheel: 3×12
-   • Side Planks: 3×45 sec each
-   • Mountain Climbers: 3×30
+CORE: Leg Raises + Russian Twists
+CARDIO: Treadmill 1 hour @ 8 km/h
 
 
-🟡 THURSDAY - Chest + Triceps + Forearms
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 THURSDAY - LEGS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+LEGS:
+1. Squats: 4×8-10
+2. Leg Press: 4×12-15
+3. Leg Extensions: 3×12-15
+4. Leg Curls: 3×12-15
+5. Lunges: 3×12 each leg
+6. Calf Raises: 4×15-20
+
+FOREARMS: Farmer's Walk + Grip Strengtheners
+CARDIO: Treadmill 1 hour @ 8 km/h
+
+
+📅 FRIDAY - CHEST + BACK (Volume Day)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 CHEST:
-   • Incline Barbell Press: 4×8-10
-   • Flat Dumbbell Press: 3×10-12
-   • Decline Press: 3×10-12
-   • Pec Deck: 3×12-15
+1. Incline Bench Press: 4×8-10
+2. Dumbbell Flyes: 3×12-15
+3. Push-ups: 3×AMRAP
 
-TRICEPS:
-   • Skull Crushers: 3×10-12
-   • Rope Pushdowns: 3×12-15
-   • Overhead Cable Extension: 3×12
-   • Diamond Push-ups: 3×failure
-
-FOREARMS:
-   • Barbell Wrist Curls: 3×20
-   • Reverse Wrist Curls: 3×20
-   • Plate Pinches: 3×30 sec
-   • Dead Hangs: 3×max
-
-
-🟠 FRIDAY - Back + Biceps + Core
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 BACK:
-   • T-Bar Rows: 4×10-12
-   • Wide Grip Pulldowns: 3×12-15
-   • Cable Rows: 3×12-15
-   • Straight Arm Pulldowns: 3×15
-   • Hyperextensions: 3×15
+1. T-Bar Rows: 4×10-12
+2. Single Arm Dumbbell Rows: 3×12-15
+3. Straight Arm Pulldowns: 3×12-15
+
+CORE: Hanging Leg Raises + Side Planks
+CARDIO: Treadmill 1 hour @ 8 km/h
+
+
+📅 SATURDAY - ARMS + SHOULDERS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 BICEPS:
-   • EZ Bar Curls: 3×10-12
-   • Concentration Curls: 3×12 each
-   • Cable Curls: 3×15
-   • 21s: 3 sets
+1. Preacher Curls: 4×10-12
+2. Cable Curls: 3×12-15
+3. 21s: 3 sets
 
-CORE:
-   • Weighted Crunches: 3×20
-   • Bicycle Crunches: 3×30
-   • V-Ups: 3×15
-   • Dead Bugs: 3×20
+TRICEPS:
+1. Skull Crushers: 4×10-12
+2. Overhead Cable Extension: 3×12-15
+3. Tricep Dips: 3×AMRAP
 
+SHOULDERS:
+1. Face Pulls: 4×15-20
+2. Lateral Raises: 3×15-20
+3. Rear Delt Flyes: 3×15-20
 
-🟣 SATURDAY - Legs + Abs + Forearms
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LEGS:
-   • Front Squats: 4×10-12
-   • Romanian Deadlifts: 3×10-12
-   • Bulgarian Split Squats: 3×12 each
-   • Leg Press: 3×15
-   • Seated Calf Raises: 4×20
-
-ABS:
-   • Cable Crunches: 3×20
-   • Reverse Crunches: 3×20
-   • Plank to Pike: 3×15
-   • Toe Touches: 3×20
-   • Ab Rollout: 3×12
-
-FOREARMS:
-   • Behind Back Wrist Curls: 3×20
-   • Finger Curls: 3×25
-   • Towel Hangs: 3×max
+FOREARMS: Full Forearm Circuit
+CARDIO: Treadmill 1 hour @ 8 km/h
 
 
-⚪ SUNDAY - Active Recovery
-━━━━━━━━━━━━━━━━━━━━━━━━━
-   • Light cardio: 30-45 min walk
-   • Stretching: 20-30 minutes
-   • Yoga or mobility work
-   • Optional: Light swim
-
-
-🎯 PROGRESSIVE OVERLOAD STRATEGY
+📅 SUNDAY - ACTIVE REST / OPTIONAL
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Week 1-2: Learn form, moderate weight
-Week 3-4: Increase weight by 5-10%
-Week 5-6: Add 1-2 reps per set
-Week 7-8: Increase weight again
-Week 9+:  Deload week, then continue
+
+OPTIONS:
+- Full Rest Day (Recommended)
+- Light Cardio Only (30-45 min walk)
+- Yoga/Stretching (30-45 min)
+- Swimming (30 min)
+
+Focus: Recovery and meal prep
 
 
-💡 WORKOUT TIPS
+⚡ PROGRESSIVE OVERLOAD STRATEGY
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-✓ Always warm up: 5-10 minutes
-✓ Focus on form over weight
+
+WEEK 1-2: Learn form, moderate weight
+WEEK 3-4: Increase weight 5-10%
+WEEK 5-6: Add 1 extra set to main lifts
+WEEK 7-8: Increase weight again 5-10%
+WEEK 9-10: Deload week (reduce weight 20%)
+WEEK 11-12: New personal records!
+
+Always prioritize:
+✓ Perfect form over heavy weight
+✓ Full range of motion
+✓ Controlled movements
+✓ Proper breathing
+✓ Mind-muscle connection
+
+
+🔥 CALORIE BURN ESTIMATES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Weight Training (1 hr): ~400 calories
+Treadmill @ 8km/h (1 hr): ~850 calories
+Core Work (30 min): ~150 calories
+
+Total Daily Burn: ~1,400 calories
+
+
+💡 PRO TIPS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✓ Warm up 5-10 min before weights
+✓ Stretch after each workout
+✓ Track your lifts in a notebook
 ✓ Rest 60-90 seconds between sets
-✓ Stay hydrated during workout
-✓ Track your weights and progress
-✓ Sleep 7-9 hours for recovery
-✓ Eat within 30 min post-workout
+✓ Rest 2-3 min for heavy compounds
+✓ Stay hydrated (500ml during workout)
+✓ Don't train through pain
+✓ Sleep 8 hours for recovery
+✓ Increase protein on workout days
 
 
-⚠️ SAFETY REMINDERS
+🚫 COMMON MISTAKES TO AVOID
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-⚠️ Use spotter for heavy lifts
-⚠️ Don't ego lift - use proper weight
-⚠️ Listen to your body
-⚠️ Take rest days seriously
-⚠️ Stretch before and after
-⚠️ Report any pain immediately`)
+
+× Ego lifting (too much weight)
+× Poor form
+× Skipping warm-up
+× Not tracking progress
+× Training same muscles back-to-back
+× Neglecting legs
+× Ignoring core work
+× Not eating enough protein
+× Insufficient rest
+
+
+📈 PROGRESS TRACKING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Track weekly:
+- Body weight (same time, same day)
+- Body measurements (chest, arms, waist)
+- Gym performance (weights, reps)
+- Progress photos (monthly)
+- How you feel (energy, soreness)
+
+
+💪 STAY STRONG & CONSISTENT!
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
+
+  const formatText = (type: 'bold' | 'italic' | 'underline' | 'code') => {
+    const textarea = document.getElementById('gym-editor') as HTMLTextAreaElement
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = content.substring(start, end)
+
+    let formattedText = ''
+    switch (type) {
+      case 'bold':
+        formattedText = `**${selectedText}**`
+        break
+      case 'italic':
+        formattedText = `*${selectedText}*`
+        break
+      case 'underline':
+        formattedText = `__${selectedText}__`
+        break
+      case 'code':
+        formattedText = `\`${selectedText}\``
+        break
+    }
+
+    const newContent = content.substring(0, start) + formattedText + content.substring(end)
+    setContent(newContent)
+  }
+
+  const insertHeading = (level: number) => {
+    const textarea = document.getElementById('gym-editor') as HTMLTextAreaElement
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const heading = '#'.repeat(level) + ' '
+    const newContent = content.substring(0, start) + heading + content.substring(start)
+    setContent(newContent)
+  }
 
   return (
     <div style={{
@@ -203,8 +321,7 @@ Week 9+:  Deload week, then continue
       padding: '2rem',
       borderRadius: '16px',
       boxShadow: '0 10px 30px rgba(79, 172, 254, 0.3)',
-      transition: 'all 0.3s ease',
-      cursor: 'pointer'
+      transition: 'all 0.3s ease'
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-5px)'
@@ -217,53 +334,174 @@ Week 9+:  Deload week, then continue
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '3rem' }}>💪</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <h2 style={{ margin: 0, color: 'white', fontSize: '1.8rem' }}>Complete Gym Plan</h2>
           <p style={{ margin: '0.25rem 0 0 0', color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' }}>
-            Detailed workout split with progressive overload strategy
+            Weekly workout split with progressive overload
           </p>
         </div>
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: isEditing ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            color: 'white',
+            border: '2px solid rgba(255,255,255,0.3)',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '1rem',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.4)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = isEditing ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)'}
+        >
+          {isEditing ? '👁️ Preview' : '✏️ Edit'}
+        </button>
       </div>
       
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        style={{
-          width: '100%',
-          minHeight: '600px',
-          padding: '1.5rem',
-          border: 'none',
-          borderRadius: '12px',
-          fontSize: '0.95rem',
-          fontFamily: 'Monaco, Consolas, monospace',
-          resize: 'vertical',
-          background: 'rgba(255,255,255,0.95)',
-          color: '#333',
-          lineHeight: '1.8',
-          boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
-        }}
-      />
+      {loading ? (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '3rem',
+          color: 'white',
+          fontSize: '1.2rem'
+        }}>
+          <div style={{
+            display: 'inline-block',
+            width: '50px',
+            height: '50px',
+            border: '5px solid rgba(255,255,255,0.3)',
+            borderTop: '5px solid white',
+            borderRadius: '50%',
+            animation: 'spin 1s linear infinite'
+          }}></div>
+          <p style={{ marginTop: '1rem' }}>Loading your plan...</p>
+        </div>
+      ) : (
+        <>
+          {isEditing && (
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              <button onClick={() => formatText('bold')} style={toolbarButtonStyle} title="Bold">
+                <strong>B</strong>
+              </button>
+              <button onClick={() => formatText('italic')} style={toolbarButtonStyle} title="Italic">
+                <em>I</em>
+              </button>
+              <button onClick={() => formatText('underline')} style={toolbarButtonStyle} title="Underline">
+                <u>U</u>
+              </button>
+              <button onClick={() => formatText('code')} style={toolbarButtonStyle} title="Code">
+                {'</>'}
+              </button>
+              <button onClick={() => insertHeading(1)} style={toolbarButtonStyle} title="Heading 1">
+                H1
+              </button>
+              <button onClick={() => insertHeading(2)} style={toolbarButtonStyle} title="Heading 2">
+                H2
+              </button>
+              <button onClick={() => insertHeading(3)} style={toolbarButtonStyle} title="Heading 3">
+                H3
+              </button>
+            </div>
+          )}
+
+          {isEditing ? (
+            <textarea
+              id="gym-editor"
+              value={content || gymMasterPlan}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Your Gym Plan will appear here..."
+              style={{
+                width: '100%',
+                minHeight: '600px',
+                padding: '1.5rem',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '0.95rem',
+                fontFamily: 'Monaco, Consolas, monospace',
+                resize: 'vertical',
+                background: 'rgba(255,255,255,0.95)',
+                color: '#333',
+                lineHeight: '1.8',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
+              }}
+            />
+          ) : (
+            <div style={{
+              width: '100%',
+              minHeight: '600px',
+              maxHeight: '600px',
+              overflowY: 'auto',
+              padding: '1.5rem',
+              borderRadius: '12px',
+              background: 'rgba(255,255,255,0.95)',
+              color: '#333',
+              lineHeight: '1.8',
+              boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)',
+              fontFamily: 'Monaco, Consolas, monospace',
+              fontSize: '0.95rem',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {content || gymMasterPlan}
+            </div>
+          )}
+          
+          {isEditing && (
+            <button
+              onClick={savePlan}
+              disabled={saving}
+              style={{
+                marginTop: '1.5rem',
+                padding: '1rem 2.5rem',
+                background: saving ? 'rgba(255,255,255,0.5)' : 'white',
+                color: saving ? '#999' : '#00f2fe',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseEnter={(e) => !saving && (e.currentTarget.style.transform = 'scale(1.05)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              {saving ? '⏳ Saving...' : '💾 Save Gym Plan'}
+            </button>
+          )}
+        </>
+      )}
       
-      <button
-        onClick={() => alert('✅ Gym plan saved!')}
-        style={{
-          marginTop: '1.5rem',
-          padding: '1rem 2.5rem',
-          background: 'white',
-          color: '#00f2fe',
-          border: 'none',
-          borderRadius: '12px',
-          cursor: 'pointer',
-          fontWeight: '700',
-          fontSize: '1.1rem',
-          boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-        onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-      >
-        💾 Save Gym Plan
-      </button>
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   )
+}
+
+const toolbarButtonStyle: React.CSSProperties = {
+  padding: '0.5rem 0.75rem',
+  background: 'rgba(255,255,255,0.2)',
+  backdropFilter: 'blur(10px)',
+  color: 'white',
+  border: '1px solid rgba(255,255,255,0.3)',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontWeight: '600',
+  fontSize: '0.9rem',
+  transition: 'all 0.2s ease',
+  minWidth: '40px'
 }
