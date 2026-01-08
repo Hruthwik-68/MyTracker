@@ -32,17 +32,6 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       if (data) {
         setStats(data)
-      } else {
-        const { data: newStats } = await supabase
-          .from('daily_stats')
-          .insert([{
-            user_id: user.id,
-            date: today
-          }])
-          .select()
-          .single()
-        
-        setStats(newStats)
       }
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -51,16 +40,24 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     }
   }
 
-  // Calculate nutrition from diet logs
+  // Calculate nutrition from diet logs - THIS RUNS EVERY RENDER WITH NEW LOGS
   const calculateNutrition = () => {
     let totalCalories = 0
     let totalProtein = 0
     let totalCarbs = 0
     let totalFiber = 0
+    let totalFats = 0
     let totalWater = 0
+    let caloriesBurned = 0
+
+    console.log('🔍 Calculating nutrition...', { itemsCount: items.length, logsCount: logs.length })
 
     const dietItems = items.filter(i => i.category === 'DIET')
+    const routineItems = items.filter(i => i.category === 'ROUTINE')
 
+    console.log('📊 Diet items:', dietItems.length, 'Routine items:', routineItems.length)
+
+    // Calculate intake from diet
     dietItems.forEach(item => {
       const log = logs.find(l => l.checklist_item_id === item.id)
       if (log && log.value) {
@@ -68,18 +65,42 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
         const metadata = item.metadata as any
 
         if (metadata && quantity > 0) {
-          // Check if it's water
           if (item.name.toLowerCase().includes('water')) {
             totalWater += quantity
           } else {
-            // Calculate nutrition based on quantity * per unit values
             totalCalories += (metadata.calories || 0) * quantity
             totalProtein += (metadata.protein || 0) * quantity
             totalCarbs += (metadata.carbs || 0) * quantity
             totalFiber += (metadata.fiber || 0) * quantity
+            totalFats += (metadata.fats || 0) * quantity
           }
         }
       }
+    })
+
+    // Calculate calories burned from exercises
+    routineItems.forEach(item => {
+      const log = logs.find(l => l.checklist_item_id === item.id)
+      const metadata = item.metadata as any
+      
+      console.log('🏋️ Checking routine item:', {
+        name: item.name,
+        hasLog: !!log,
+        isDone: log?.is_done,
+        hasMetadata: !!metadata,
+        caloriesBurn: metadata?.calories_burn
+      })
+      
+      if (log && log.is_done && metadata?.calories_burn) {
+        console.log('✅ Adding calories burned:', metadata.calories_burn)
+        caloriesBurned += metadata.calories_burn
+      }
+    })
+
+    console.log('📈 Final calculation:', {
+      totalCalories,
+      caloriesBurned,
+      netCalories: totalCalories - caloriesBurned
     })
 
     return {
@@ -87,15 +108,16 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
       protein: Math.round(totalProtein * 10) / 10,
       carbs: Math.round(totalCarbs * 10) / 10,
       fiber: Math.round(totalFiber * 10) / 10,
-      water: Math.round(totalWater * 10) / 10
+      fats: Math.round(totalFats * 10) / 10,
+      water: Math.round(totalWater * 10) / 10,
+      caloriesBurned
     }
   }
 
   if (loading) return <p>Loading stats...</p>
 
   const nutrition = calculateNutrition()
-  const caloriesBurned = stats?.calories_burned || 0
-  const netCalories = nutrition.calories - caloriesBurned
+  const netCalories = nutrition.calories - nutrition.caloriesBurned
 
   return (
     <div style={{
@@ -119,11 +141,16 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔥</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Net Calories</div>
-        <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
+        <div style={{ 
+          fontSize: '1.75rem', 
+          fontWeight: 'bold', 
+          marginTop: '0.5rem',
+          color: netCalories < 0 ? '#ffcccb' : 'white'
+        }}>
           {netCalories} cal
         </div>
         <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: '0.25rem' }}>
-          {nutrition.calories} in - {caloriesBurned} out
+          {nutrition.calories} in - {nutrition.caloriesBurned} out
         </div>
       </div>
 
@@ -164,6 +191,26 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Carbs</div>
         <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
           {nutrition.carbs}g
+        </div>
+      </div>
+
+      {/* Fats */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
+        padding: '1.5rem',
+        borderRadius: '12px',
+        color: 'white',
+        boxShadow: '0 4px 15px rgba(253,203,110,0.3)',
+        transition: 'all 0.3s ease',
+        cursor: 'pointer'
+      }}
+      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+      >
+        <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🥑</div>
+        <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Fats</div>
+        <div style={{ fontSize: '1.75rem', fontWeight: 'bold', marginTop: '0.5rem' }}>
+          {nutrition.fats}g
         </div>
       </div>
 
