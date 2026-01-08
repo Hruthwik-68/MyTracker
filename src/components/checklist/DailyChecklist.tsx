@@ -22,9 +22,9 @@ export const DailyChecklist = () => {
   
   // Collapsible sections state
   const [sectionsExpanded, setSectionsExpanded] = useState({
-    routine: true,
-    supplements: true,
-    diet: true,
+    routine: false,
+    supplements: false,
+    diet: false,
     stats: false
   })
 
