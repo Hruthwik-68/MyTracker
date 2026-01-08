@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import type { Streak, DailyStat, DailyChecklist, ChecklistItem } from '../../types'
+import type { Streak, DailyStat, DailyChecklist, ChecklistItem, Note } from '../../types'
 
 interface StreakCalendarProps {
   onClose: () => void
@@ -10,6 +10,7 @@ interface StreakCalendarProps {
 export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
   const { user } = useAuth()
   const [streaks, setStreaks] = useState<Streak[]>([])
+  const [notes, setNotes] = useState<Note[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)
@@ -17,11 +18,13 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     stats: DailyStat | null
     checklists: DailyChecklist[]
     items: ChecklistItem[]
+    note: Note | null
   } | null>(null)
   const [loadingDayData, setLoadingDayData] = useState(false)
 
   useEffect(() => {
     loadStreaks()
+    loadNotes()
   }, [user, currentMonth])
 
   const loadStreaks = async () => {
@@ -46,6 +49,31 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     } finally {
       setLoading(false)
     }
+  }
+
+  const loadNotes = async () => {
+    if (!user) return
+    try {
+      const startOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
+      const endOfMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0)
+
+      const { data } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('date', startOfMonth.toISOString().split('T')[0])
+        .lte('date', endOfMonth.toISOString().split('T')[0])
+
+      if (data) {
+        setNotes(data)
+      }
+    } catch (error) {
+      console.error('Error loading notes:', error)
+    }
+  }
+
+  const hasNote = (dateStr: string) => {
+    return notes.some(n => n.date === dateStr)
   }
 
   const loadDayData = async (dateStr: string) => {
@@ -76,10 +104,19 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         .eq('user_id', user.id)
         .order('order_index', { ascending: true })
 
+      // Load note
+      const { data: noteData } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', dateStr)
+        .single()
+
       setDayData({
         stats: statsData || null,
         checklists: checklistData || [],
-        items: itemsData || []
+        items: itemsData || [],
+        note: noteData || null
       })
     } catch (error) {
       console.error('Error loading day data:', error)
@@ -102,6 +139,25 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
       days.push(i)
     }
     return days
+  }
+
+  const getStreakColor = (day: number | null) => {
+    if (!day) return 'transparent'
+    
+    const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const streak = streaks.find(s => s.date === dateStr)
+    
+    if (!streak) return '#fee2e2' // Missed - light red
+    
+    // If streak exists but we need to calculate completion percentage
+    return getCompletionColor(dateStr)
+  }
+
+  const getCompletionColor = (dateStr: string) => {
+    // This will be calculated dynamically based on stats
+    // For now, return green if streak exists
+    const streak = streaks.find(s => s.date === dateStr)
+    return streak?.is_success ? '#4ade80' : '#fee2e2'
   }
 
   const isStreakDay = (day: number | null) => {
@@ -138,6 +194,62 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     return { completed, total }
   }
 
+  const calculateNutrition = () => {
+    if (!dayData) return { calories: 0, protein: 0, carbs: 0, fiber: 0, fats: 0, water: 0, caloriesBurned: 0 }
+
+    let totalCalories = 0
+    let totalProtein = 0
+    let totalCarbs = 0
+    let totalFiber = 0
+    let totalFats = 0
+    let totalWater = 0
+    let caloriesBurned = 0
+
+    const dietItems = dayData.items.filter(i => i.category === 'DIET')
+    const routineItems = dayData.items.filter(i => i.category === 'ROUTINE')
+
+    // Calculate intake from diet
+    dietItems.forEach(item => {
+      const log = dayData.checklists.find(l => l.checklist_item_id === item.id)
+      if (log && log.value) {
+        const quantity = parseFloat(log.value) || 0
+        const metadata = item.metadata as any
+
+        if (metadata && quantity > 0) {
+          if (item.name.toLowerCase().includes('water')) {
+            totalWater += quantity
+          } else {
+            totalCalories += (metadata.calories || 0) * quantity
+            totalProtein += (metadata.protein || 0) * quantity
+            totalCarbs += (metadata.carbs || 0) * quantity
+            totalFiber += (metadata.fiber || 0) * quantity
+            totalFats += (metadata.fats || 0) * quantity
+          }
+        }
+      }
+    })
+
+    // Calculate calories burned from exercises
+    routineItems.forEach(item => {
+      const log = dayData.checklists.find(l => l.checklist_item_id === item.id)
+      const metadata = item.metadata as any
+      
+      if (log && log.is_done && metadata?.calories_burn) {
+        caloriesBurned += metadata.calories_burn
+      }
+    })
+
+    return {
+      calories: Math.round(totalCalories),
+      protein: Math.round(totalProtein * 10) / 10,
+      carbs: Math.round(totalCarbs * 10) / 10,
+      fiber: Math.round(totalFiber * 10) / 10,
+      fats: Math.round(totalFats * 10) / 10,
+      water: Math.round(totalWater * 10) / 10,
+      caloriesBurned
+    }
+  }
+
   return (
     <div style={{
       position: 'fixed',
@@ -157,7 +269,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         background: 'white',
         padding: '2rem',
         borderRadius: '16px',
-        maxWidth: selectedDate ? '1000px' : '600px',
+        maxWidth: selectedDate ? '1100px' : '650px',
         width: '100%',
         maxHeight: '90vh',
         overflow: 'auto',
@@ -269,12 +381,14 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                 {getDaysInMonth().map((day, index) => {
                   const dateStr = day ? `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : null
                   const isSelected = dateStr === selectedDate
+                  const hasNoteMarker = dateStr && hasNote(dateStr)
                   
                   return (
                     <div
                       key={index}
                       onClick={() => handleDayClick(day)}
                       style={{
+                        position: 'relative',
                         aspectRatio: '1',
                         display: 'flex',
                         justifyContent: 'center',
@@ -282,8 +396,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                         borderRadius: '8px',
                         background: day === null ? 'transparent' : 
                                    isSelected ? '#667eea' :
-                                   isStreakDay(day) ? '#4ade80' : 
-                                   '#fee2e2',
+                                   getStreakColor(day),
                         color: day === null ? 'transparent' : 
                                isSelected ? 'white' :
                                isStreakDay(day) ? 'white' : '#dc2626',
@@ -301,10 +414,22 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                       }}
                       onMouseLeave={(e) => {
                         e.currentTarget.style.transform = 'scale(1)'
-                        e.currentTarget.style.boxShadow = 'none'
+                        e.currentTarget.style.boxShadow = isSelected ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
                       }}
                     >
                       {day}
+                      {hasNoteMarker && (
+                        <div style={{
+                          position: 'absolute',
+                          top: '4px',
+                          right: '4px',
+                          width: '6px',
+                          height: '6px',
+                          background: '#000',
+                          borderRadius: '50%',
+                          boxShadow: '0 0 3px rgba(0,0,0,0.5)'
+                        }}></div>
+                      )}
                     </div>
                   )
                 })}
@@ -336,18 +461,41 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                 }}></div>
                 <span style={{ fontSize: '0.875rem' }}>Missed</span>
               </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{
+                  width: '20px',
+                  height: '20px',
+                  background: 'white',
+                  border: '2px solid #000',
+                  borderRadius: '4px',
+                  position: 'relative'
+                }}>
+                  <div style={{
+                    position: 'absolute',
+                    top: '1px',
+                    right: '1px',
+                    width: '4px',
+                    height: '4px',
+                    background: '#000',
+                    borderRadius: '50%'
+                  }}></div>
+                </div>
+                <span style={{ fontSize: '0.875rem' }}>Has Note</span>
+              </div>
             </div>
           </div>
 
-          {/* Day Details */}
+          {/* Day Details - Scrollable Compact */}
           {selectedDate && (
             <div style={{ 
               flex: 1, 
               borderLeft: '2px solid #e0e0e0', 
               paddingLeft: '2rem',
-              minWidth: '300px'
+              minWidth: '320px',
+              maxHeight: '600px',
+              overflowY: 'auto'
             }}>
-              <h3 style={{ marginBottom: '1rem', color: '#667eea', fontSize: '1.3rem' }}>
+              <h3 style={{ marginBottom: '1rem', color: '#667eea', fontSize: '1.3rem', position: 'sticky', top: 0, background: 'white', paddingBottom: '0.5rem', zIndex: 10 }}>
                 📅 {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
                   weekday: 'long', 
                   month: 'long', 
@@ -371,100 +519,165 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                 </div>
               ) : dayData ? (
                 <>
-                  {/* Stats */}
+                  {/* Note Display */}
+                  {dayData.note && (
+                    <div style={{ 
+                      marginBottom: '1.5rem',
+                      background: 'linear-gradient(135deg, #fff9e6 0%, #ffe8b3 100%)',
+                      padding: '1rem',
+                      borderRadius: '12px',
+                      border: '2px solid #ffd700'
+                    }}>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#b8860b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        📝 Note
+                      </h4>
+                      <p style={{ 
+                        margin: 0, 
+                        color: '#666', 
+                        fontSize: '0.9rem',
+                        lineHeight: '1.6',
+                        whiteSpace: 'pre-wrap'
+                      }}>
+                        {dayData.note.content}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Compact Stats Grid */}
                   {dayData.stats && (
                     <div style={{ 
                       marginBottom: '1.5rem',
                       background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
-                      padding: '1.25rem',
+                      padding: '1rem',
                       borderRadius: '12px',
                       border: '1px solid #e0e7ff'
                     }}>
-                      <h4 style={{ marginBottom: '1rem', color: '#333', fontSize: '1.1rem' }}>📊 Daily Stats</h4>
-                      <div style={{ display: 'grid', gap: '0.75rem', fontSize: '0.95rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>📊 Stats</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
                           <span>⚡ Energy:</span>
-                          <strong>{dayData.stats.energy_level}/10</strong>
+                          <strong style={{ float: 'right' }}>{dayData.stats.energy_level}/10</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
                           <span>🎯 Focus:</span>
-                          <strong>{dayData.stats.focus_level}/10</strong>
+                          <strong style={{ float: 'right' }}>{dayData.stats.focus_level}/10</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>💯 Consistency:</span>
-                          <strong>{dayData.stats.consistency ? '✅ Yes' : '❌ No'}</strong>
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                          <span>💯 Consistent:</span>
+                          <strong style={{ float: 'right' }}>{dayData.stats.consistency ? '✅' : '❌'}</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>🧠 DSA Hours:</span>
-                          <strong>{dayData.stats.dsa_hours ?? 0}h</strong>
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                          <span>🧠 DSA:</span>
+                          <strong style={{ float: 'right' }}>{dayData.stats.dsa_hours || 0}h</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>📐 LLD Hours:</span>
-                          <strong>{dayData.stats.lld_hours ?? 0}h</strong>
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                          <span>📐 LLD:</span>
+                          <strong style={{ float: 'right' }}>{dayData.stats.lld_hours || 0}h</strong>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span>✅ Problems Solved:</span>
-                          <strong>{dayData.stats.problems_solved ?? 0}</strong>
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                          <span>✅ Problems:</span>
+                          <strong style={{ float: 'right' }}>{dayData.stats.problems_solved || 0}</strong>
                         </div>
-                        {(dayData.stats.water_litres ?? 0) > 0 && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>💧 Water:</span>
-                            <strong>{dayData.stats.water_litres}L</strong>
-                          </div>
-                        )}
-                        {(dayData.stats.sleep_hours ?? 0) > 0 && (
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span>🛌 Sleep:</span>
-                            <strong>{dayData.stats.sleep_hours}h</strong>
-                          </div>
-                        )}
+                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                          <span>💪 Gym:</span>
+                          <strong style={{ float: 'right' }}>{dayData.stats.gym_hours || 0}h</strong>
+                        </div>
                       </div>
                     </div>
                   )}
 
+                  {/* Nutrition Stats - Compact */}
+                  {(() => {
+                    const nutrition = calculateNutrition()
+                    const netCalories = nutrition.calories - nutrition.caloriesBurned
+                    return (
+                      <div style={{ 
+                        marginBottom: '1.5rem',
+                        background: 'linear-gradient(135deg, #e8fff0 0%, #d0ffe0 100%)',
+                        padding: '1rem',
+                        borderRadius: '12px',
+                        border: '1px solid #b3ffc8'
+                      }}>
+                        <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>🍽️ Nutrition</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                            <span>🔥 Net Cal:</span>
+                            <strong style={{ float: 'right', color: netCalories < 0 ? '#dc2626' : '#16a34a' }}>
+                              {netCalories}
+                            </strong>
+                          </div>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: '0.75rem', color: '#666' }}>
+                            <span>{nutrition.calories} in</span>
+                            <span style={{ float: 'right' }}>-{nutrition.caloriesBurned} out</span>
+                          </div>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                            <span>💪 Protein:</span>
+                            <strong style={{ float: 'right' }}>{nutrition.protein}g</strong>
+                          </div>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                            <span>🥑 Fats:</span>
+                            <strong style={{ float: 'right' }}>{nutrition.fats}g</strong>
+                          </div>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                            <span>🍞 Carbs:</span>
+                            <strong style={{ float: 'right' }}>{nutrition.carbs}g</strong>
+                          </div>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                            <span>🌾 Fiber:</span>
+                            <strong style={{ float: 'right' }}>{nutrition.fiber}g</strong>
+                          </div>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px', gridColumn: 'span 2' }}>
+                            <span>💧 Water:</span>
+                            <strong style={{ float: 'right' }}>{nutrition.water}L</strong>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   {/* Checklist Progress */}
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1.1rem' }}>✅ Checklist Progress</h4>
+                    <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>✅ Checklist Progress</h4>
                     <div style={{
                       background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
                       borderRadius: '12px',
-                      padding: '1.25rem',
-                      fontSize: '1.3rem',
+                      padding: '1rem',
+                      fontSize: '1.2rem',
                       fontWeight: 'bold',
                       textAlign: 'center',
                       color: '#2e7d32',
                       border: '2px solid #4caf50'
                     }}>
-                      {getCompletedCount().completed} / {getCompletedCount().total} completed
+                      {getCompletedCount().completed} / {getCompletedCount().total}
                     </div>
                   </div>
 
                   {/* Completed Items */}
                   {dayData.checklists.filter(c => c.is_done).length > 0 && (
                     <div>
-                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1.1rem' }}>✅ Completed Tasks</h4>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>✅ Completed</h4>
                       <div style={{ 
                         display: 'flex', 
                         flexDirection: 'column', 
                         gap: '0.5rem',
-                        maxHeight: '300px',
+                        maxHeight: '200px',
                         overflowY: 'auto'
                       }}>
                         {dayData.checklists.filter(c => c.is_done).map(log => {
                           const item = dayData.items.find(i => i.id === log.checklist_item_id)
                           return item ? (
                             <div key={log.id} style={{
-                              padding: '0.75rem 1rem',
+                              padding: '0.5rem 0.75rem',
                               background: '#e8f5e9',
                               borderRadius: '8px',
-                              fontSize: '0.9rem',
+                              fontSize: '0.85rem',
                               color: '#2e7d32',
                               border: '1px solid #c8e6c9',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.5rem'
                             }}>
-                              <span style={{ fontSize: '1rem' }}>✓</span>
+                              <span style={{ fontSize: '0.9rem' }}>✓</span>
                               {item.name}
                             </div>
                           ) : null
@@ -474,7 +687,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   )}
 
                   {/* No data state */}
-                  {!dayData.stats && dayData.checklists.length === 0 && (
+                  {!dayData.stats && dayData.checklists.length === 0 && !dayData.note && (
                     <div style={{
                       textAlign: 'center',
                       padding: '2rem',
