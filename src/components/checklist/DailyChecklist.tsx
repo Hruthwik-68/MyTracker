@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import type { ChecklistItem, DailyChecklist as DailyChecklistType } from '../../types'
+import type { ChecklistItem, DailyChecklist as DailyChecklistType, Note } from '../../types'
 import { NutritionStats } from './NutritionStats'
 import { StreakCalendar } from './StreakCalendar'
 
@@ -13,7 +13,21 @@ export const DailyChecklist = () => {
   const [showStreaks, setShowStreaks] = useState(false)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showEditItem, setShowEditItem] = useState(false)
+  const [showMacroModal, setShowMacroModal] = useState(false)
+  const [showNotesModal, setShowNotesModal] = useState(false)
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null)
+  const [viewingMacroItem, setViewingMacroItem] = useState<ChecklistItem | null>(null)
+  const [todayNote, setTodayNote] = useState<Note | null>(null)
+  const [noteContent, setNoteContent] = useState('')
+  
+  // Collapsible sections state
+  const [sectionsExpanded, setSectionsExpanded] = useState({
+    routine: true,
+    supplements: true,
+    diet: true,
+    stats: false
+  })
+
   const [newItem, setNewItem] = useState({
     name: '',
     category: 'ROUTINE' as 'ROUTINE' | 'SUPPLEMENT' | 'DIET',
@@ -23,15 +37,19 @@ export const DailyChecklist = () => {
     fats: 0,
     carbs: 0,
     fiber: 0,
-    unit: 'gram' as 'gram' | 'unit' | 'scoop'
+    unit: 'gram' as 'gram' | 'unit' | 'scoop',
+    calories_burn: 0,
+    is_exercise: false
   })
+  
   const [dailyStats, setDailyStats] = useState({
     energyLevel: 5,
     focusLevel: 5,
     consistency: true,
     dsaHours: 0,
     lldHours: 0,
-    problemsSolved: 0
+    problemsSolved: 0,
+    gymHours: 0
   })
 
   const today = new Date()
@@ -44,7 +62,105 @@ export const DailyChecklist = () => {
 
   useEffect(() => {
     loadChecklistData()
+    loadTodayNote()
   }, [user])
+
+  const loadTodayNote = async () => {
+    if (!user) return
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      const { data } = await supabase
+        .from('notes')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', today)
+        .single()
+
+      if (data) {
+        setTodayNote(data)
+        setNoteContent(data.content)
+      }
+    } catch (error) {
+      console.error('Error loading note:', error)
+    }
+  }
+
+  const deleteNote = async () => {
+    if (!user || !todayNote) return
+    
+    if (!confirm('Delete this note permanently?')) return
+    
+    try {
+      await supabase
+        .from('notes')
+        .delete()
+        .eq('id', todayNote.id)
+      
+      setTodayNote(null)
+      setNoteContent('')
+      setShowNotesModal(false)
+      alert('✅ Note deleted successfully!')
+    } catch (error) {
+      console.error('Error deleting note:', error)
+      alert('❌ Failed to delete note')
+    }
+  }
+
+  const saveNote = async () => {
+    if (!user) return
+    
+    try {
+      const today = new Date().toISOString().split('T')[0]
+      
+      // If note content is empty, delete the note
+      if (!noteContent.trim()) {
+        if (todayNote) {
+          await supabase
+            .from('notes')
+            .delete()
+            .eq('id', todayNote.id)
+          
+          setTodayNote(null)
+          alert('✅ Note deleted successfully!')
+        } else {
+          alert('ℹ️ No note to delete')
+        }
+        setShowNotesModal(false)
+        return
+      }
+      
+      // Save or update note
+      if (todayNote) {
+        const { data } = await supabase
+          .from('notes')
+          .update({ content: noteContent, updated_at: new Date().toISOString() })
+          .eq('id', todayNote.id)
+          .select()
+          .single()
+        
+        if (data) setTodayNote(data)
+        alert('✅ Note updated successfully!')
+      } else {
+        const { data } = await supabase
+          .from('notes')
+          .insert([{
+            user_id: user.id,
+            date: today,
+            content: noteContent
+          }])
+          .select()
+          .single()
+        
+        if (data) setTodayNote(data)
+        alert('✅ Note saved successfully!')
+      }
+      
+      setShowNotesModal(false)
+    } catch (error) {
+      console.error('Error saving note:', error)
+      alert('❌ Failed to save note')
+    }
+  }
 
   const loadChecklistData = async () => {
     if (!user) return
@@ -85,7 +201,8 @@ export const DailyChecklist = () => {
           consistency: statsData.consistency ?? true,
           dsaHours: statsData.dsa_hours || 0,
           lldHours: statsData.lld_hours || 0,
-          problemsSolved: statsData.problems_solved || 0
+          problemsSolved: statsData.problems_solved || 0,
+          gymHours: statsData.gym_hours || 0
         })
       }
     } catch (error) {
@@ -96,103 +213,102 @@ export const DailyChecklist = () => {
   }
 
   const createDefaultItems = async () => {
-  if (!user) return
+    if (!user) return
 
-  const { data: existing } = await supabase
-    .from('checklist_items')
-    .select('id')
-    .eq('user_id', user.id)
-    .limit(1)
+    const { data: existing } = await supabase
+      .from('checklist_items')
+      .select('id')
+      .eq('user_id', user.id)
+      .limit(1)
 
-  if (existing && existing.length > 0) {
-    return
+    if (existing && existing.length > 0) {
+      return
+    }
+
+    const defaultItems = [
+      { category: 'ROUTINE', name: '☀️ Wake up', order_index: 1, metadata: null },
+      { category: 'ROUTINE', name: '🪥 Brush', order_index: 2, metadata: null },
+      { category: 'ROUTINE', name: '💦 Splash water', order_index: 3, metadata: null },
+      { category: 'ROUTINE', name: '📚 Revise while brushing', order_index: 4, metadata: null },
+      { category: 'ROUTINE', name: '🏃 Treadmill (1 hr @ 8km/h)', order_index: 5, metadata: { calories_burn: 850 } },
+      { category: 'ROUTINE', name: '💪 Gym - Weight Training (1 hr)', order_index: 6, metadata: { calories_burn: 400 } },
+      { category: 'ROUTINE', name: '🧠 Study DSA/CP', order_index: 7, metadata: null },
+      { category: 'ROUTINE', name: '💻 Work Block (9 AM - 6 PM)', order_index: 8, metadata: null },
+      { category: 'ROUTINE', name: '📖 LLD Study (0.5-1 hr)', order_index: 9, metadata: null },
+      { category: 'ROUTINE', name: '🛌 Sleep 8 hours', order_index: 10, metadata: null },
+      
+      { category: 'SUPPLEMENT', name: '🔥 Hot water (morning)', order_index: 11, metadata: null },
+      { category: 'SUPPLEMENT', name: '💊 Glutathione (alternate days)', order_index: 12, metadata: null },
+      { category: 'SUPPLEMENT', name: '🍊 Vitamin C (alternate days)', order_index: 13, metadata: null },
+      { category: 'SUPPLEMENT', name: '✨ Skin care tablet (morning)', order_index: 14, metadata: null },
+      { category: 'SUPPLEMENT', name: '🌙 Skin care tablet (night)', order_index: 15, metadata: null },
+      { category: 'SUPPLEMENT', name: '⚡ Creatine 3-5g', order_index: 16, metadata: null },
+      { category: 'SUPPLEMENT', name: '🍵 Green tea (evening)', order_index: 17, metadata: null },
+      { category: 'SUPPLEMENT', name: '💊 Multivitamin (evening)', order_index: 18, metadata: null },
+      { category: 'SUPPLEMENT', name: '🌰 Flaxseed 1 spoon', order_index: 19, metadata: null },
+      
+      { 
+        category: 'DIET', 
+        name: '💧 Water (litres)', 
+        order_index: 20,
+        metadata: { unit: 'litre', calories: 0, protein: 0, carbs: 0, fiber: 0, fats: 0 }
+      },
+      { 
+        category: 'DIET', 
+        name: '🍗 Chicken Breast (grams)', 
+        order_index: 21,
+        metadata: { unit: 'gram', calories: 1.2, protein: 0.225, carbs: 0.026, fiber: 0, fats: 0.002 }
+      },
+      { 
+        category: 'DIET', 
+        name: '🥚 Eggs (units)', 
+        order_index: 22,
+        metadata: { unit: 'unit', calories: 68.25, protein: 4.675, carbs: 2.3, fiber: 0, fats: 2 }
+      },
+      { 
+        category: 'DIET', 
+        name: '🌱 Sprouts (grams)', 
+        order_index: 23,
+        metadata: { unit: 'gram', calories: 0.3, protein: 0.03, carbs: 0.002, fiber: 0.018, fats: 0.06 }
+      },
+      { 
+        category: 'DIET', 
+        name: '💪 Whey Protein (scoops)', 
+        order_index: 24,
+        metadata: { unit: 'scoop', calories: 135, protein: 22, carbs: 2.1, fiber: 0.5, fats: 7 }
+      },
+      { 
+        category: 'DIET', 
+        name: '🥛 Curd (grams)', 
+        order_index: 25,
+        metadata: { unit: 'gram', calories: 0.6, protein: 0.031, carbs: 0.04, fiber: 0, fats: 0.03 }
+      },
+      { 
+        category: 'DIET', 
+        name: '🍚 Boiled Rice (grams)', 
+        order_index: 26,
+        metadata: { unit: 'gram', calories: 1.08, protein: 0.018, carbs: 0.24, fiber: 0.01, fats: 0.002 }
+      },
+      { 
+        category: 'DIET', 
+        name: '🫘 Soya Chunks (grams)', 
+        order_index: 27,
+        metadata: { unit: 'gram', calories: 3.45, protein: 0.518, carbs: 0.009, fiber: 0.127, fats: 0.327 }
+      },
+    ]
+
+    const itemsToInsert = defaultItems.map(item => ({
+      user_id: user.id,
+      category: item.category,
+      name: item.name,
+      is_persistent: true,
+      order_index: item.order_index,
+      metadata: item.metadata
+    }))
+
+    await supabase.from('checklist_items').insert(itemsToInsert)
+    await loadChecklistData()
   }
-
-  const defaultItems = [
-    { category: 'ROUTINE', name: '☀️ Wake up', order_index: 1, metadata: null },
-    { category: 'ROUTINE', name: '🪥 Brush', order_index: 2, metadata: null },
-    { category: 'ROUTINE', name: '💦 Splash water', order_index: 3, metadata: null },
-    { category: 'ROUTINE', name: '📚 Revise while brushing', order_index: 4, metadata: null },
-    { category: 'ROUTINE', name: '🏃 Treadmill (1 hr @ 8km/h)', order_index: 5, metadata: null },
-    { category: 'ROUTINE', name: '💪 Gym - Weight Training (1 hr)', order_index: 6, metadata: null },
-    { category: 'ROUTINE', name: '🧠 Study DSA/CP', order_index: 7, metadata: null },
-    { category: 'ROUTINE', name: '💻 Work Block (9 AM - 6 PM)', order_index: 8, metadata: null },
-    { category: 'ROUTINE', name: '📖 LLD Study (0.5-1 hr)', order_index: 9, metadata: null },
-    { category: 'ROUTINE', name: '🛌 Sleep 8 hours', order_index: 10, metadata: null },
-    
-    { category: 'SUPPLEMENT', name: '🔥 Hot water (morning)', order_index: 11, metadata: null },
-    { category: 'SUPPLEMENT', name: '💊 Glutathione (alternate days)', order_index: 12, metadata: null },
-    { category: 'SUPPLEMENT', name: '🍊 Vitamin C (alternate days)', order_index: 13, metadata: null },
-    { category: 'SUPPLEMENT', name: '✨ Skin care tablet (morning)', order_index: 14, metadata: null },
-    { category: 'SUPPLEMENT', name: '🌙 Skin care tablet (night)', order_index: 15, metadata: null },
-    { category: 'SUPPLEMENT', name: '⚡ Creatine 3-5g', order_index: 16, metadata: null },
-    { category: 'SUPPLEMENT', name: '🍵 Green tea (evening)', order_index: 17, metadata: null },
-    { category: 'SUPPLEMENT', name: '💊 Multivitamin (evening)', order_index: 18, metadata: null },
-    { category: 'SUPPLEMENT', name: '🌰 Flaxseed 1 spoon', order_index: 19, metadata: null },
-    
-    // Diet items with nutrition per gram/unit
-    { 
-      category: 'DIET', 
-      name: '💧 Water (litres)', 
-      order_index: 20,
-      metadata: { unit: 'litre', calories: 0, protein: 0, carbs: 0, fiber: 0, fats: 0 }
-    },
-    { 
-      category: 'DIET', 
-      name: '🍗 Chicken Breast (grams)', 
-      order_index: 21,
-      metadata: { unit: 'gram', calories: 1.2, protein: 0.225, carbs: 0.026, fiber: 0, fats: 0.002 }
-    },
-    { 
-      category: 'DIET', 
-      name: '🥚 Eggs (units)', 
-      order_index: 22,
-      metadata: { unit: 'unit', calories: 68.25, protein: 4.675, carbs: 2.3, fiber: 0, fats: 2 }
-    },
-    { 
-      category: 'DIET', 
-      name: '🌱 Sprouts (grams)', 
-      order_index: 23,
-      metadata: { unit: 'gram', calories: 0.3, protein: 0.03, carbs: 0.002, fiber: 0.018, fats: 0.06 }
-    },
-    { 
-      category: 'DIET', 
-      name: '💪 Whey Protein (scoops)', 
-      order_index: 24,
-      metadata: { unit: 'scoop', calories: 135, protein: 22, carbs: 2.1, fiber: 0.5, fats: 7 }
-    },
-    { 
-      category: 'DIET', 
-      name: '🥛 Curd (grams)', 
-      order_index: 25,
-      metadata: { unit: 'gram', calories: 0.6, protein: 0.031, carbs: 0.04, fiber: 0, fats: 0.03 }
-    },
-    { 
-      category: 'DIET', 
-      name: '🍚 Boiled Rice (grams)', 
-      order_index: 26,
-      metadata: { unit: 'gram', calories: 1.08, protein: 0.018, carbs: 0.24, fiber: 0.01, fats: 0.002 }
-    },
-    { 
-      category: 'DIET', 
-      name: '🫘 Soya Chunks (grams)', 
-      order_index: 27,
-      metadata: { unit: 'gram', calories: 3.45, protein: 0.518, carbs: 0.009, fiber: 0.127, fats: 0.327 }
-    },
-  ]
-
-  const itemsToInsert = defaultItems.map(item => ({
-    user_id: user.id,
-    category: item.category,
-    name: item.name,
-    is_persistent: true,
-    order_index: item.order_index,
-    metadata: item.metadata
-  }))
-
-  await supabase.from('checklist_items').insert(itemsToInsert)
-  await loadChecklistData()
-}
 
   const toggleChecklistItem = async (item: ChecklistItem) => {
     if (!user) return
@@ -269,14 +385,22 @@ export const DailyChecklist = () => {
     if (!user || !newItem.name.trim()) return
 
     try {
-      const metadata = newItem.category === 'DIET' ? {
-        unit: newItem.unit,
-        calories: newItem.calories,
-        protein: newItem.protein,
-        fats: newItem.fats,
-        carbs: newItem.carbs,
-        fiber: newItem.fiber
-      } : null
+      let metadata = null
+      
+      if (newItem.category === 'DIET') {
+        metadata = {
+          unit: newItem.unit,
+          calories: newItem.calories,
+          protein: newItem.protein,
+          fats: newItem.fats,
+          carbs: newItem.carbs,
+          fiber: newItem.fiber
+        }
+      } else if (newItem.category === 'ROUTINE' && newItem.is_exercise) {
+        metadata = {
+          calories_burn: newItem.calories_burn
+        }
+      }
 
       const { data } = await supabase
         .from('checklist_items')
@@ -303,7 +427,9 @@ export const DailyChecklist = () => {
           fats: 0,
           carbs: 0,
           fiber: 0,
-          unit: 'gram'
+          unit: 'gram',
+          calories_burn: 0,
+          is_exercise: false
         })
         alert('✅ New item added successfully!')
       }
@@ -317,13 +443,11 @@ export const DailyChecklist = () => {
     if (!confirm('Are you sure you want to delete this item?')) return
 
     try {
-      // Delete associated logs first
       await supabase
         .from('daily_checklists')
         .delete()
         .eq('checklist_item_id', itemId)
 
-      // Delete the item
       await supabase
         .from('checklist_items')
         .delete()
@@ -341,6 +465,11 @@ export const DailyChecklist = () => {
   const openEditModal = (item: ChecklistItem) => {
     setEditingItem(item)
     setShowEditItem(true)
+  }
+
+  const openMacroModal = (item: ChecklistItem) => {
+    setViewingMacroItem(item)
+    setShowMacroModal(true)
   }
 
   const updateItem = async () => {
@@ -387,7 +516,8 @@ export const DailyChecklist = () => {
         consistency: dailyStats.consistency,
         dsa_hours: dailyStats.dsaHours,
         lld_hours: dailyStats.lldHours,
-        problems_solved: dailyStats.problemsSolved
+        problems_solved: dailyStats.problemsSolved,
+        gym_hours: dailyStats.gymHours
       }
 
       if (existing) {
@@ -439,13 +569,16 @@ export const DailyChecklist = () => {
     return logs.find(l => l.checklist_item_id === itemId)
   }
 
+  const toggleSection = (section: keyof typeof sectionsExpanded) => {
+    setSectionsExpanded(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
   const renderChecklistItem = (item: ChecklistItem) => {
     const log = getLogForItem(item.id)
+    const metadata = item.metadata as any
+    const hasCalorieBurn = metadata?.calories_burn !== undefined && metadata?.calories_burn > 0
 
     if (item.category === 'DIET') {
-      const metadata = item.metadata as any
-      const unit = metadata?.unit || 'gram'
-      
       return (
         <div key={item.id} style={{
           display: 'flex',
@@ -471,7 +604,7 @@ export const DailyChecklist = () => {
           <span style={{ flex: 1, fontWeight: '500', fontSize: '1rem' }}>{item.name}</span>
           <input
             type="number"
-            step={unit === 'gram' ? '1' : unit === 'unit' ? '1' : '0.5'}
+            step={metadata?.unit === 'gram' ? '1' : metadata?.unit === 'unit' ? '1' : '0.5'}
             min="0"
             value={log?.value || ''}
             onChange={(e) => updateDietValue(item, e.target.value)}
@@ -488,7 +621,26 @@ export const DailyChecklist = () => {
           />
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
+              onClick={() => openMacroModal(item)}
+              title="View Macro"
+              style={{
+                background: '#4caf50',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#45a049'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#4caf50'}
+            >
+              📊
+            </button>
+            <button
               onClick={() => openEditModal(item)}
+              title="Edit"
               style={{
                 background: '#667eea',
                 color: 'white',
@@ -496,13 +648,17 @@ export const DailyChecklist = () => {
                 padding: '0.5rem 0.75rem',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                transition: 'all 0.2s'
               }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
             >
               ✏️
             </button>
             <button
               onClick={() => deleteItem(item.id)}
+              title="Delete"
               style={{
                 background: '#ff6b6b',
                 color: 'white',
@@ -510,8 +666,11 @@ export const DailyChecklist = () => {
                 padding: '0.5rem 0.75rem',
                 borderRadius: '6px',
                 cursor: 'pointer',
-                fontSize: '0.9rem'
+                fontSize: '0.9rem',
+                transition: 'all 0.2s'
               }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
             >
               🗑️
             </button>
@@ -520,39 +679,53 @@ export const DailyChecklist = () => {
       )
     }
 
+    // ROUTINE and SUPPLEMENT items - MAKE ENTIRE ROW CLICKABLE
     return (
-      <div key={item.id} style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        padding: '1rem',
-        background: log?.is_done ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' : 'white',
-        border: log?.is_done ? '2px solid #4caf50' : '2px solid #e0e0e0',
-        borderRadius: '12px',
-        marginBottom: '0.75rem',
-        transition: 'all 0.3s ease',
-        boxShadow: log?.is_done ? '0 4px 12px rgba(76,175,80,0.2)' : '0 2px 8px rgba(0,0,0,0.05)'
-      }}
-      onMouseEnter={(e) => {
-        if (!log?.is_done) {
-          e.currentTarget.style.borderColor = '#667eea'
-          e.currentTarget.style.transform = 'translateX(5px)'
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = log?.is_done ? '#4caf50' : '#e0e0e0'
-        e.currentTarget.style.transform = 'translateX(0)'
-      }}
+      <div 
+        key={item.id} 
+        onClick={(e) => {
+          // Don't toggle if clicking on buttons
+          if ((e.target as HTMLElement).closest('button')) {
+            return
+          }
+          toggleChecklistItem(item)
+        }}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+          padding: '1rem',
+          background: log?.is_done ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' : 'white',
+          border: log?.is_done ? '2px solid #4caf50' : '2px solid #e0e0e0',
+          borderRadius: '12px',
+          marginBottom: '0.75rem',
+          transition: 'all 0.3s ease',
+          boxShadow: log?.is_done ? '0 4px 12px rgba(76,175,80,0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
+          cursor: 'pointer'
+        }}
+        onMouseEnter={(e) => {
+          if (!log?.is_done) {
+            e.currentTarget.style.borderColor = '#667eea'
+            e.currentTarget.style.transform = 'translateX(5px)'
+          }
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = log?.is_done ? '#4caf50' : '#e0e0e0'
+          e.currentTarget.style.transform = 'translateX(0)'
+        }}
       >
         <input
           type="checkbox"
           checked={log?.is_done || false}
-          onChange={() => toggleChecklistItem(item)}
+          onChange={(e) => {
+            e.stopPropagation()
+          }}
           style={{ 
             cursor: 'pointer', 
             width: '22px', 
             height: '22px',
-            accentColor: '#4caf50'
+            accentColor: '#4caf50',
+            pointerEvents: 'none'
           }}
         />
         <span style={{
@@ -560,24 +733,73 @@ export const DailyChecklist = () => {
           textDecoration: log?.is_done ? 'line-through' : 'none',
           color: log?.is_done ? '#666' : '#333',
           fontWeight: '500',
-          fontSize: '1rem'
+          fontSize: '1rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.75rem',
+          flexWrap: 'wrap'
         }}>
-          {item.name}
+          <span>{item.name}</span>
+          {hasCalorieBurn && (
+            <span style={{
+              padding: '0.35rem 0.75rem',
+              background: 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)',
+              color: 'white',
+              borderRadius: '6px',
+              fontSize: '0.8rem',
+              fontWeight: '700',
+              boxShadow: '0 2px 8px rgba(255,107,107,0.3)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem'
+            }}>
+              🔥 Burn {metadata.calories_burn} cal
+            </span>
+          )}
         </span>
-        <button
-          onClick={() => deleteItem(item.id)}
-          style={{
-            background: '#ff6b6b',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 0.75rem',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '0.9rem'
-          }}
-        >
-          🗑️
-        </button>
+        
+        <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
+          {hasCalorieBurn && (
+            <button
+              onClick={() => openEditModal(item)}
+              title="Edit Calorie Burn"
+              style={{
+                background: '#ff9800',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s',
+                fontWeight: '600'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#f57c00'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#ff9800'}
+            >
+              ✏️
+            </button>
+          )}
+          
+          <button
+            onClick={() => deleteItem(item.id)}
+            title="Delete"
+            style={{
+              background: '#ff6b6b',
+              color: 'white',
+              border: 'none',
+              padding: '0.5rem 0.75rem',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              fontSize: '0.9rem',
+              transition: 'all 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
+            onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
+          >
+            🗑️
+          </button>
+        </div>
       </div>
     )
   }
@@ -629,194 +851,375 @@ export const DailyChecklist = () => {
             <h1 style={{ margin: 0, fontSize: '2.5rem', marginBottom: '0.5rem' }}>✅ Daily Checklist</h1>
             <p style={{ margin: 0, fontSize: '1.1rem', opacity: 0.9 }}>📅 {formattedDate}</p>
           </div>
-          <button
-            onClick={() => setShowStreaks(true)}
-            style={{
-              padding: '1rem 2rem',
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              fontWeight: '700',
-              fontSize: '1.1rem',
-              transition: 'all 0.3s ease'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.3)'
-              e.currentTarget.style.transform = 'scale(1.05)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'rgba(255,255,255,0.2)'
-              e.currentTarget.style.transform = 'scale(1)'
-            }}
-          >
-            🔥 View Streaks
-          </button>
+          <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setShowNotesModal(true)}
+              style={{
+                padding: '1rem 2rem',
+                background: todayNote ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                color: 'white',
+                border: `2px solid ${todayNote ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.3)'}`,
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = todayNote ? 'rgba(255,215,0,0.4)' : 'rgba(255,255,255,0.3)'
+                e.currentTarget.style.transform = 'scale(1.05)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = todayNote ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.2)'
+                e.currentTarget.style.transform = 'scale(1)'
+              }}
+            >
+              📝 {todayNote ? 'Edit Note' : 'Add Note'}
+            </button>
+            <button
+              onClick={() => setShowStreaks(true)}
+              style={{
+                padding: '1rem 2rem',
+                background: 'rgba(255,255,255,0.2)',
+                backdropFilter: 'blur(10px)',
+                color: 'white',
+                border: '2px solid rgba(255,255,255,0.3)',
+                borderRadius: '12px',
+                cursor: 'pointer',
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.3)'
+                e.currentTarget.style.transform = 'scale(1.05)'
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = 'rgba(255,255,255,0.2)'
+                e.currentTarget.style.transform = 'scale(1)'
+              }}
+            >
+              🔥 View Streaks
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Stats Grid - Enhanced with DSA, LLD, Problems - EDITABLE */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-        gap: '1rem',
-        marginBottom: '2rem'
-      }}>
-        {/* DSA Hours - Editable */}
-        <div style={{
-          background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-          padding: '1.5rem',
-          borderRadius: '12px',
-          color: 'white',
-          boxShadow: '0 4px 15px rgba(102,126,234,0.3)',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧠</div>
-          <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>DSA Hours</div>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={dailyStats.dsaHours || ''}
-            onChange={(e) => setDailyStats({...dailyStats, dsaHours: parseFloat(e.target.value) || 0})}
-            onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
-            placeholder="0"
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              background: 'rgba(255,255,255,0.2)',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '8px',
-              padding: '0.5rem',
-              width: '100%',
-              color: 'white',
-              textAlign: 'center'
-            }}
-          />
-        </div>
-
-        {/* LLD Hours - Editable */}
-        <div style={{
-          background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-          padding: '1.5rem',
-          borderRadius: '12px',
-          color: 'white',
-          boxShadow: '0 4px 15px rgba(245,87,108,0.3)',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📐</div>
-          <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>LLD Hours</div>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            value={dailyStats.lldHours || ''}
-            onChange={(e) => setDailyStats({...dailyStats, lldHours: parseFloat(e.target.value) || 0})}
-            onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
-            placeholder="0"
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              background: 'rgba(255,255,255,0.2)',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '8px',
-              padding: '0.5rem',
-              width: '100%',
-              color: 'white',
-              textAlign: 'center'
-            }}
-          />
-        </div>
-
-        {/* Problems Solved - Editable */}
-        <div style={{
-          background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-          padding: '1.5rem',
-          borderRadius: '12px',
-          color: 'white',
-          boxShadow: '0 4px 15px rgba(79,172,254,0.3)',
-          transition: 'all 0.3s ease'
-        }}
-        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
-        >
-          <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
-          <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Problems Solved</div>
-          <input
-            type="number"
-            min="0"
-            value={dailyStats.problemsSolved || ''}
-            onChange={(e) => setDailyStats({...dailyStats, problemsSolved: parseInt(e.target.value) || 0})}
-            onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
-            placeholder="0"
-            style={{
-              fontSize: '1.5rem',
-              fontWeight: 'bold',
-              background: 'rgba(255,255,255,0.2)',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '8px',
-              padding: '0.5rem',
-              width: '100%',
-              color: 'white',
-              textAlign: 'center'
-            }}
-          />
-        </div>
-      </div>
-
-      <NutritionStats items={items} logs={logs} />
-
-      {/* Routine Section */}
+      {/* Collapsible Stats Section */}
       <div style={{
         background: 'white',
-        padding: '2rem',
         borderRadius: '16px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
         marginBottom: '2rem',
-        border: '1px solid #f0f0f0'
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
       }}>
-        <h2 style={{ marginBottom: '1.5rem', color: '#667eea', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span>🌅</span> Morning Routine
-        </h2>
-        {routineItems.map(renderChecklistItem)}
+        <button
+          onClick={() => toggleSection('stats')}
+          style={{
+            width: '100%',
+            padding: '1.5rem 2rem',
+            background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#667eea'
+          }}
+        >
+          <span>📊 View Stats</span>
+          <span style={{ 
+            fontSize: '1.2rem',
+            transition: 'transform 0.3s ease',
+            transform: sectionsExpanded.stats ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>
+            ▼
+          </span>
+        </button>
+        
+        {sectionsExpanded.stats && (
+          <div style={{ padding: '2rem' }}>
+            {/* Stats Grid */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+              gap: '1rem',
+              marginBottom: '2rem'
+            }}>
+              {/* DSA Hours */}
+              <div style={{
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                color: 'white',
+                boxShadow: '0 4px 15px rgba(102,126,234,0.3)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🧠</div>
+                <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>DSA Hours</div>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={dailyStats.dsaHours || ''}
+                  onChange={(e) => setDailyStats({...dailyStats, dsaHours: parseFloat(e.target.value) || 0})}
+                  onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                  placeholder="0"
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    width: '100%',
+                    color: 'white',
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+
+              {/* LLD Hours */}
+              <div style={{
+                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                color: 'white',
+                boxShadow: '0 4px 15px rgba(245,87,108,0.3)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📐</div>
+                <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>LLD Hours</div>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={dailyStats.lldHours || ''}
+                  onChange={(e) => setDailyStats({...dailyStats, lldHours: parseFloat(e.target.value) || 0})}
+                  onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                  placeholder="0"
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    width: '100%',
+                    color: 'white',
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+
+              {/* Problems Solved */}
+              <div style={{
+                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                color: 'white',
+                boxShadow: '0 4px 15px rgba(79,172,254,0.3)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>✅</div>
+                <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Problems Solved</div>
+                <input
+                  type="number"
+                  min="0"
+                  value={dailyStats.problemsSolved || ''}
+                  onChange={(e) => setDailyStats({...dailyStats, problemsSolved: parseInt(e.target.value) || 0})}
+                  onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                  placeholder="0"
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    width: '100%',
+                    color: 'white',
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+
+              {/* Gym Hours */}
+              <div style={{
+                background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                color: 'white',
+                boxShadow: '0 4px 15px rgba(250,112,154,0.3)',
+                transition: 'all 0.3s ease'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+              >
+                <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💪</div>
+                <div style={{ fontSize: '0.875rem', opacity: 0.9, marginBottom: '0.5rem' }}>Gym Hours</div>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={dailyStats.gymHours || ''}
+                  onChange={(e) => setDailyStats({...dailyStats, gymHours: parseFloat(e.target.value) || 0})}
+                  onFocus={(e) => e.target.value === '0' && (e.target.value = '')}
+                  placeholder="0"
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 'bold',
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '2px solid rgba(255,255,255,0.3)',
+                    borderRadius: '8px',
+                    padding: '0.5rem',
+                    width: '100%',
+                    color: 'white',
+                    textAlign: 'center'
+                  }}
+                />
+              </div>
+            </div>
+
+            <NutritionStats items={items} logs={logs} />
+          </div>
+        )}
       </div>
 
-      {/* Supplements Section */}
+      {/* Routine Section - Collapsible */}
       <div style={{
         background: 'white',
-        padding: '2rem',
         borderRadius: '16px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
         marginBottom: '2rem',
-        border: '1px solid #f0f0f0'
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
       }}>
-        <h2 style={{ marginBottom: '1.5rem', color: '#f5576c', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span>💊</span> Supplements & Care
-        </h2>
-        {supplementItems.map(renderChecklistItem)}
+        <button
+          onClick={() => toggleSection('routine')}
+          style={{
+            width: '100%',
+            padding: '1.5rem 2rem',
+            background: 'linear-gradient(135deg, #e8f5ff 0%, #d0e8ff 100%)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#667eea'
+          }}
+        >
+          <span>🌅 Morning Routine</span>
+          <span style={{ 
+            fontSize: '1.2rem',
+            transition: 'transform 0.3s ease',
+            transform: sectionsExpanded.routine ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>
+            ▼
+          </span>
+        </button>
+        {sectionsExpanded.routine && (
+          <div style={{ padding: '2rem' }}>
+            {routineItems.map(renderChecklistItem)}
+          </div>
+        )}
       </div>
 
-      {/* Diet Section */}
+      {/* Supplements Section - Collapsible */}
       <div style={{
         background: 'white',
-        padding: '2rem',
         borderRadius: '16px',
         boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
         marginBottom: '2rem',
-        border: '1px solid #f0f0f0'
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
       }}>
-        <h2 style={{ marginBottom: '1.5rem', color: '#00f2fe', fontSize: '1.8rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-          <span>🍽️</span> Diet Tracking
-        </h2>
-        {dietItems.map(renderChecklistItem)}
+        <button
+          onClick={() => toggleSection('supplements')}
+          style={{
+            width: '100%',
+            padding: '1.5rem 2rem',
+            background: 'linear-gradient(135deg, #ffe8f0 0%, #ffd0e0 100%)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#f5576c'
+          }}
+        >
+          <span>💊 Supplements & Care</span>
+          <span style={{ 
+            fontSize: '1.2rem',
+            transition: 'transform 0.3s ease',
+            transform: sectionsExpanded.supplements ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>
+            ▼
+          </span>
+        </button>
+        {sectionsExpanded.supplements && (
+          <div style={{ padding: '2rem' }}>
+            {supplementItems.map(renderChecklistItem)}
+          </div>
+        )}
+      </div>
+
+      {/* Diet Section - Collapsible */}
+      <div style={{
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        marginBottom: '2rem',
+        border: '1px solid #f0f0f0',
+        overflow: 'hidden'
+      }}>
+        <button
+          onClick={() => toggleSection('diet')}
+          style={{
+            width: '100%',
+            padding: '1.5rem 2rem',
+            background: 'linear-gradient(135deg, #e8fff0 0%, #d0ffe0 100%)',
+            border: 'none',
+            cursor: 'pointer',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            fontSize: '1.5rem',
+            fontWeight: '700',
+            color: '#00f2fe'
+          }}
+        >
+          <span>🍽️ Diet Tracking</span>
+          <span style={{ 
+            fontSize: '1.2rem',
+            transition: 'transform 0.3s ease',
+            transform: sectionsExpanded.diet ? 'rotate(180deg)' : 'rotate(0deg)'
+          }}>
+            ▼
+          </span>
+        </button>
+        {sectionsExpanded.diet && (
+          <div style={{ padding: '2rem' }}>
+            {dietItems.map(renderChecklistItem)}
+          </div>
+        )}
       </div>
 
       {/* Daily Self Check */}
@@ -918,6 +1321,243 @@ export const DailyChecklist = () => {
         ➕ Add New Checklist Item
       </button>
 
+      {/* Notes Modal */}
+      {showNotesModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2.5rem',
+            borderRadius: '16px',
+            maxWidth: '700px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <h2 style={{ marginBottom: '2rem', color: '#333', fontSize: '1.8rem' }}>
+              📝 {todayNote ? 'Edit Today\'s Note' : 'Add Note for Today'}
+            </h2>
+
+            <textarea
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              placeholder="Write your thoughts, achievements, or reflections for today..."
+              style={{
+                width: '100%',
+                minHeight: '300px',
+                padding: '1rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '1rem',
+                resize: 'vertical',
+                fontFamily: 'inherit',
+                lineHeight: '1.6'
+              }}
+            />
+
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', flexWrap: 'wrap' }}>
+              <button
+                onClick={saveNote}
+                style={{
+                  flex: 1,
+                  minWidth: '150px',
+                  padding: '1rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  fontSize: '1.1rem',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                💾 Save Note
+              </button>
+              
+              {todayNote && (
+                <button
+                  onClick={deleteNote}
+                  style={{
+                    flex: 1,
+                    minWidth: '150px',
+                    padding: '1rem',
+                    background: '#ff6b6b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: '700',
+                    fontSize: '1.1rem',
+                    transition: 'all 0.3s ease'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  🗑️ Delete Note
+                </button>
+              )}
+              
+              <button
+                onClick={() => {
+                  setShowNotesModal(false)
+                  setNoteContent(todayNote?.content || '')
+                }}
+                style={{
+                  flex: 1,
+                  minWidth: '150px',
+                  padding: '1rem',
+                  background: '#ccc',
+                  color: '#333',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  fontSize: '1.1rem',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                ❌ Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* View Macro Modal */}
+      {showMacroModal && viewingMacroItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '2.5rem',
+            borderRadius: '16px',
+            maxWidth: '500px',
+            width: '100%',
+            boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
+          }}>
+            <h2 style={{ marginBottom: '2rem', color: '#333', fontSize: '1.8rem' }}>
+              📊 Macro Details
+            </h2>
+            
+            <h3 style={{ marginBottom: '1rem', color: '#667eea', fontSize: '1.3rem' }}>
+              {viewingMacroItem.name}
+            </h3>
+
+            {viewingMacroItem.metadata && (
+              <div style={{ 
+                background: '#f8f9ff',
+                padding: '1.5rem',
+                borderRadius: '12px',
+                marginBottom: '1.5rem'
+              }}>
+                <p style={{ margin: '0 0 1rem 0', fontSize: '0.9rem', color: '#666', fontWeight: '600' }}>
+                  Per {(viewingMacroItem.metadata as any).unit}:
+                </p>
+                <div style={{ display: 'grid', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>🔥 Calories:</span>
+                    <strong>{(viewingMacroItem.metadata as any).calories || 0}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>💪 Protein:</span>
+                    <strong>{(viewingMacroItem.metadata as any).protein || 0}g</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>🍞 Carbs:</span>
+                    <strong>{(viewingMacroItem.metadata as any).carbs || 0}g</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>🥑 Fats:</span>
+                    <strong>{(viewingMacroItem.metadata as any).fats || 0}g</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>🌾 Fiber:</span>
+                    <strong>{(viewingMacroItem.metadata as any).fiber || 0}g</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: '1rem' }}>
+              <button
+                onClick={() => {
+                  setShowMacroModal(false)
+                  openEditModal(viewingMacroItem)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  background: '#667eea',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                ✏️ Edit
+              </button>
+              <button
+                onClick={() => {
+                  setShowMacroModal(false)
+                  setViewingMacroItem(null)
+                }}
+                style={{
+                  flex: 1,
+                  padding: '1rem',
+                  background: '#ccc',
+                  color: '#333',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700',
+                  fontSize: '1rem',
+                  transition: 'all 0.3s ease'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+              >
+                ❌ Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Add Item Modal */}
       {showAddItem && (
         <div style={{
@@ -981,6 +1621,42 @@ export const DailyChecklist = () => {
                 <option value="DIET">Diet</option>
               </select>
             </div>
+
+            {newItem.category === 'ROUTINE' && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', fontSize: '1rem', fontWeight: '600', color: '#555' }}>
+                  <input
+                    type="checkbox"
+                    checked={newItem.is_exercise}
+                    onChange={(e) => setNewItem({...newItem, is_exercise: e.target.checked})}
+                    style={{ width: '20px', height: '20px', accentColor: '#ff6b6b' }}
+                  />
+                  🔥 This burns calories (exercise)
+                </label>
+                
+                {newItem.is_exercise && (
+                  <div style={{ marginTop: '1rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#555' }}>
+                      Calories Burned
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={newItem.calories_burn}
+                      onChange={(e) => setNewItem({...newItem, calories_burn: parseInt(e.target.value) || 0})}
+                      placeholder="e.g., 400"
+                      style={{
+                        width: '100%',
+                        padding: '1rem',
+                        border: '2px solid #ddd',
+                        borderRadius: '8px',
+                        fontSize: '1rem'
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {newItem.category !== 'DIET' && (
               <div style={{ marginBottom: '1.5rem' }}>
@@ -1192,7 +1868,9 @@ export const DailyChecklist = () => {
             overflow: 'auto',
             boxShadow: '0 20px 60px rgba(0,0,0,0.3)'
           }}>
-            <h2 style={{ marginBottom: '2rem', color: '#333', fontSize: '1.8rem' }}>✏️ Edit Diet Item</h2>
+            <h2 style={{ marginBottom: '2rem', color: '#333', fontSize: '1.8rem' }}>
+              ✏️ Edit {editingItem.category === 'DIET' ? 'Diet' : editingItem.category === 'ROUTINE' && (editingItem.metadata as any)?.calories_burn ? 'Exercise' : ''} Item
+            </h2>
 
             <div style={{ marginBottom: '1.5rem' }}>
               <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#555' }}>Item Name</label>
@@ -1209,6 +1887,30 @@ export const DailyChecklist = () => {
                 }}
               />
             </div>
+
+            {editingItem.category === 'ROUTINE' && (editingItem.metadata as any)?.calories_burn !== undefined && (
+              <div style={{ marginBottom: '1.5rem' }}>
+                <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: '600', color: '#555' }}>
+                  Calories Burned
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={(editingItem.metadata as any).calories_burn || 0}
+                  onChange={(e) => setEditingItem({
+                    ...editingItem, 
+                    metadata: {...editingItem.metadata, calories_burn: parseInt(e.target.value) || 0}
+                  })}
+                  style={{
+                    width: '100%',
+                    padding: '1rem',
+                    border: '2px solid #ddd',
+                    borderRadius: '8px',
+                    fontSize: '1rem'
+                  }}
+                />
+              </div>
+            )}
 
             {editingItem.category === 'DIET' && editingItem.metadata && (
               <>
