@@ -32,6 +32,17 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       if (data) {
         setStats(data)
+      } else {
+        const { data: newStats } = await supabase
+          .from('daily_stats')
+          .insert([{
+            user_id: user.id,
+            date: today
+          }])
+          .select()
+          .single()
+        
+        setStats(newStats)
       }
     } catch (error) {
       console.error('Error loading stats:', error)
@@ -40,7 +51,7 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     }
   }
 
-  // Calculate nutrition from diet logs - THIS RUNS EVERY RENDER WITH NEW LOGS
+  // Calculate nutrition from diet logs
   const calculateNutrition = () => {
     let totalCalories = 0
     let totalProtein = 0
@@ -50,12 +61,8 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     let totalWater = 0
     let caloriesBurned = 0
 
-    console.log('🔍 Calculating nutrition...', { itemsCount: items.length, logsCount: logs.length })
-
     const dietItems = items.filter(i => i.category === 'DIET')
     const routineItems = items.filter(i => i.category === 'ROUTINE')
-
-    console.log('📊 Diet items:', dietItems.length, 'Routine items:', routineItems.length)
 
     // Calculate intake from diet
     dietItems.forEach(item => {
@@ -65,9 +72,11 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
         const metadata = item.metadata as any
 
         if (metadata && quantity > 0) {
+          // Check if it's water
           if (item.name.toLowerCase().includes('water')) {
             totalWater += quantity
           } else {
+            // Calculate nutrition based on quantity * per unit values
             totalCalories += (metadata.calories || 0) * quantity
             totalProtein += (metadata.protein || 0) * quantity
             totalCarbs += (metadata.carbs || 0) * quantity
@@ -83,24 +92,9 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
       const log = logs.find(l => l.checklist_item_id === item.id)
       const metadata = item.metadata as any
       
-      console.log('🏋️ Checking routine item:', {
-        name: item.name,
-        hasLog: !!log,
-        isDone: log?.is_done,
-        hasMetadata: !!metadata,
-        caloriesBurn: metadata?.calories_burn
-      })
-      
       if (log && log.is_done && metadata?.calories_burn) {
-        console.log('✅ Adding calories burned:', metadata.calories_burn)
         caloriesBurned += metadata.calories_burn
       }
-    })
-
-    console.log('📈 Final calculation:', {
-      totalCalories,
-      caloriesBurned,
-      netCalories: totalCalories - caloriesBurned
     })
 
     return {
