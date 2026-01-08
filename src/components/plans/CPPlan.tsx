@@ -7,6 +7,7 @@ export const CPPlan = () => {
   const [content, setContent] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
 
   useEffect(() => {
     loadPlan()
@@ -63,6 +64,7 @@ export const CPPlan = () => {
       }
 
       alert('✅ CP Plan saved successfully!')
+      setIsEditing(false)
     } catch (error) {
       console.error('Error saving CP plan:', error)
       alert('❌ Failed to save CP plan')
@@ -441,14 +443,51 @@ If you:
 
 👉 EXPERT BY MAY IS REALISTIC`
 
+  const formatText = (type: 'bold' | 'italic' | 'underline' | 'code') => {
+    const textarea = document.getElementById('cp-editor') as HTMLTextAreaElement
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const selectedText = content.substring(start, end)
+
+    let formattedText = ''
+    switch (type) {
+      case 'bold':
+        formattedText = `**${selectedText}**`
+        break
+      case 'italic':
+        formattedText = `*${selectedText}*`
+        break
+      case 'underline':
+        formattedText = `__${selectedText}__`
+        break
+      case 'code':
+        formattedText = `\`${selectedText}\``
+        break
+    }
+
+    const newContent = content.substring(0, start) + formattedText + content.substring(end)
+    setContent(newContent)
+  }
+
+  const insertHeading = (level: number) => {
+    const textarea = document.getElementById('cp-editor') as HTMLTextAreaElement
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const heading = '#'.repeat(level) + ' '
+    const newContent = content.substring(0, start) + heading + content.substring(start)
+    setContent(newContent)
+  }
+
   return (
     <div style={{
       background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
       padding: '2rem',
       borderRadius: '16px',
       boxShadow: '0 10px 30px rgba(102, 126, 234, 0.3)',
-      transition: 'all 0.3s ease',
-      cursor: 'pointer'
+      transition: 'all 0.3s ease'
     }}
     onMouseEnter={(e) => {
       e.currentTarget.style.transform = 'translateY(-5px)'
@@ -461,12 +500,31 @@ If you:
     >
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ fontSize: '3rem' }}>📝</div>
-        <div>
+        <div style={{ flex: 1 }}>
           <h2 style={{ margin: 0, color: 'white', fontSize: '1.8rem' }}>CP Master Plan</h2>
           <p style={{ margin: '0.25rem 0 0 0', color: 'rgba(255,255,255,0.8)', fontSize: '0.9rem' }}>
             Your roadmap to CF Expert by May
           </p>
         </div>
+        <button
+          onClick={() => setIsEditing(!isEditing)}
+          style={{
+            padding: '0.75rem 1.5rem',
+            background: isEditing ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(10px)',
+            color: 'white',
+            border: '2px solid rgba(255,255,255,0.3)',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '1rem',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.4)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = isEditing ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.2)'}
+        >
+          {isEditing ? '👁️ Preview' : '✏️ Edit'}
+        </button>
       </div>
       
       {loading ? (
@@ -489,50 +547,104 @@ If you:
         </div>
       ) : (
         <>
-          <textarea
-            value={content || cpMasterPlan}
-            onChange={(e) => setContent(e.target.value)}
-            placeholder="Your CP Master Plan will appear here..."
-            style={{
+          {isEditing && (
+            <div style={{
+              display: 'flex',
+              gap: '0.5rem',
+              marginBottom: '1rem',
+              flexWrap: 'wrap'
+            }}>
+              <button onClick={() => formatText('bold')} style={toolbarButtonStyle} title="Bold">
+                <strong>B</strong>
+              </button>
+              <button onClick={() => formatText('italic')} style={toolbarButtonStyle} title="Italic">
+                <em>I</em>
+              </button>
+              <button onClick={() => formatText('underline')} style={toolbarButtonStyle} title="Underline">
+                <u>U</u>
+              </button>
+              <button onClick={() => formatText('code')} style={toolbarButtonStyle} title="Code">
+                {'</>'}
+              </button>
+              <button onClick={() => insertHeading(1)} style={toolbarButtonStyle} title="Heading 1">
+                H1
+              </button>
+              <button onClick={() => insertHeading(2)} style={toolbarButtonStyle} title="Heading 2">
+                H2
+              </button>
+              <button onClick={() => insertHeading(3)} style={toolbarButtonStyle} title="Heading 3">
+                H3
+              </button>
+            </div>
+          )}
+
+          {isEditing ? (
+            <textarea
+              id="cp-editor"
+              value={content || cpMasterPlan}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Your CP Master Plan will appear here..."
+              style={{
+                width: '100%',
+                minHeight: '600px',
+                padding: '1.5rem',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '0.95rem',
+                fontFamily: 'Monaco, Consolas, monospace',
+                resize: 'vertical',
+                background: 'rgba(255,255,255,0.95)',
+                color: '#333',
+                lineHeight: '1.8',
+                boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
+              }}
+            />
+          ) : (
+            <div style={{
               width: '100%',
               minHeight: '600px',
+              maxHeight: '600px',
+              overflowY: 'auto',
               padding: '1.5rem',
-              border: 'none',
               borderRadius: '12px',
-              fontSize: '0.95rem',
-              fontFamily: 'Monaco, Consolas, monospace',
-              resize: 'vertical',
               background: 'rgba(255,255,255,0.95)',
               color: '#333',
               lineHeight: '1.8',
-              boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)'
-            }}
-          />
+              boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.1)',
+              fontFamily: 'Monaco, Consolas, monospace',
+              fontSize: '0.95rem',
+              whiteSpace: 'pre-wrap'
+            }}>
+              {content || cpMasterPlan}
+            </div>
+          )}
           
-          <button
-            onClick={savePlan}
-            disabled={saving}
-            style={{
-              marginTop: '1.5rem',
-              padding: '1rem 2.5rem',
-              background: saving ? 'rgba(255,255,255,0.5)' : 'white',
-              color: saving ? '#999' : '#667eea',
-              border: 'none',
-              borderRadius: '12px',
-              cursor: saving ? 'not-allowed' : 'pointer',
-              fontWeight: '700',
-              fontSize: '1.1rem',
-              boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
-              transition: 'all 0.3s ease',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-            onMouseEnter={(e) => !saving && (e.currentTarget.style.transform = 'scale(1.05)')}
-            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-          >
-            {saving ? '⏳ Saving...' : '💾 Save CP Plan'}
-          </button>
+          {isEditing && (
+            <button
+              onClick={savePlan}
+              disabled={saving}
+              style={{
+                marginTop: '1.5rem',
+                padding: '1rem 2.5rem',
+                background: saving ? 'rgba(255,255,255,0.5)' : 'white',
+                color: saving ? '#999' : '#667eea',
+                border: 'none',
+                borderRadius: '12px',
+                cursor: saving ? 'not-allowed' : 'pointer',
+                fontWeight: '700',
+                fontSize: '1.1rem',
+                boxShadow: '0 4px 15px rgba(0,0,0,0.2)',
+                transition: 'all 0.3s ease',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+              onMouseEnter={(e) => !saving && (e.currentTarget.style.transform = 'scale(1.05)')}
+              onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            >
+              {saving ? '⏳ Saving...' : '💾 Save CP Plan'}
+            </button>
+          )}
         </>
       )}
       
@@ -544,4 +656,18 @@ If you:
       `}</style>
     </div>
   )
+}
+
+const toolbarButtonStyle: React.CSSProperties = {
+  padding: '0.5rem 0.75rem',
+  background: 'rgba(255,255,255,0.2)',
+  backdropFilter: 'blur(10px)',
+  color: 'white',
+  border: '1px solid rgba(255,255,255,0.3)',
+  borderRadius: '6px',
+  cursor: 'pointer',
+  fontWeight: '600',
+  fontSize: '0.9rem',
+  transition: 'all 0.2s ease',
+  minWidth: '40px'
 }
