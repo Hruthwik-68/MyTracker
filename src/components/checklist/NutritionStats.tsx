@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import type { DailyStat, ChecklistItem, DailyChecklist } from '../../types'
+import type { ChecklistItem, DailyChecklist } from '../../types'
 
 interface NutritionStatsProps {
   items: ChecklistItem[]
