@@ -27,11 +27,15 @@ export interface ChecklistItem {
   is_persistent: boolean
   order_index: number
   metadata?: {
+    // For DIET items
+    unit?: 'gram' | 'unit' | 'scoop' | 'litre'
     calories?: number
     protein?: number
     fats?: number
     carbs?: number
     fiber?: number
+    // For ROUTINE items (exercises)
+    calories_burn?: number
   } | null
   created_at: string
 }
@@ -84,6 +88,7 @@ export interface DailyStat {
   dsa_hours: number | null
   lld_hours: number | null
   problems_solved: number | null
+  gym_hours: number | null
   created_at: string
   updated_at: string
 }
@@ -94,4 +99,13 @@ export interface Streak {
   date: string
   is_success: boolean
   created_at: string
+}
+
+export interface Note {
+  id: string
+  user_id: string
+  date: string
+  content: string
+  created_at: string
+  updated_at: string
 }
