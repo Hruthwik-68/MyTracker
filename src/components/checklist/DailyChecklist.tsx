@@ -573,281 +573,136 @@ export const DailyChecklist = () => {
     setSectionsExpanded(prev => ({ ...prev, [section]: !prev[section] }))
   }
 
-const renderChecklistItem = (item: ChecklistItem, index: number) => {
-  const log = getLogForItem(item.id)
-  const metadata = item.metadata as any
-  const hasCalorieBurn = metadata?.calories_burn !== undefined && metadata?.calories_burn > 0
+  const renderChecklistItem = (item: ChecklistItem, index: number) => {
+    const log = getLogForItem(item.id)
+    const metadata = item.metadata as any
+    const hasCalorieBurn = metadata?.calories_burn !== undefined && metadata?.calories_burn > 0
 
-  if (item.category === 'DIET') {
-    return (
-      <div key={item.id} style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        padding: '1rem',
-        background: 'white',
-        border: '2px solid #e0e0e0',
-        borderRadius: '12px',
-        marginBottom: '0.75rem',
-        transition: 'all 0.3s ease',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
-      }}
-      onMouseEnter={(e) => {
-        e.currentTarget.style.borderColor = '#667eea'
-        e.currentTarget.style.transform = 'translateX(5px)'
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = '#e0e0e0'
-        e.currentTarget.style.transform = 'translateX(0)'
-      }}
-      >
-        {/* Drag Handle */}
-        <div style={{
-          cursor: 'grab',
-          color: '#999',
-          fontSize: '1.5rem',
-          padding: '0.5rem',
+    if (item.category === 'DIET') {
+      return (
+        <div key={item.id} style={{
           display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-          userSelect: 'none'
+          alignItems: 'center',
+          gap: '1rem',
+          padding: '1rem',
+          background: 'white',
+          border: '2px solid #e0e0e0',
+          borderRadius: '12px',
+          marginBottom: '0.75rem',
+          transition: 'all 0.3s ease',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.05)'
         }}
-        title="Drag to reorder"
-        >
-          <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
-          <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
-          <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
-        </div>
-
-        <span style={{ flex: 1, fontWeight: '500', fontSize: '1rem' }}>{item.name}</span>
-        <input
-          type="number"
-          step={metadata?.unit === 'gram' ? '1' : metadata?.unit === 'unit' ? '1' : '0.5'}
-          min="0"
-          value={log?.value || ''}
-          onChange={(e) => updateDietValue(item, e.target.value)}
-          placeholder="0"
-          style={{
-            padding: '0.75rem',
-            border: '2px solid #ddd',
-            borderRadius: '8px',
-            width: '120px',
-            fontSize: '1rem',
-            textAlign: 'center',
-            fontWeight: '600'
-          }}
-        />
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            onClick={() => openMacroModal(item)}
-            title="View Macro"
-            style={{
-              background: '#4caf50',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#45a049'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#4caf50'}
-          >
-            📊
-          </button>
-          <button
-            onClick={() => openEditModal(item)}
-            title="Edit"
-            style={{
-              background: '#667eea',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
-          >
-            ✏️
-          </button>
-          <button
-            onClick={() => deleteItem(item.id)}
-            title="Delete"
-            style={{
-              background: '#ff6b6b',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ROUTINE and SUPPLEMENT items
-  return (
-    <div 
-      key={item.id} 
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[data-drag-handle]')) {
-          return
-        }
-        toggleChecklistItem(item)
-      }}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        padding: '1rem',
-        background: log?.is_done ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' : 'white',
-        border: log?.is_done ? '2px solid #4caf50' : '2px solid #e0e0e0',
-        borderRadius: '12px',
-        marginBottom: '0.75rem',
-        transition: 'all 0.3s ease',
-        boxShadow: log?.is_done ? '0 4px 12px rgba(76,175,80,0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
-        cursor: 'pointer'
-      }}
-      onMouseEnter={(e) => {
-        if (!log?.is_done) {
+        onMouseEnter={(e) => {
           e.currentTarget.style.borderColor = '#667eea'
           e.currentTarget.style.transform = 'translateX(5px)'
-        }
-      }}
-      onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = log?.is_done ? '#4caf50' : '#e0e0e0'
-        e.currentTarget.style.transform = 'translateX(0)'
-      }}
-    >
-      {/* Drag Handle */}
-      <div 
-        data-drag-handle
-        style={{
-          cursor: 'grab',
-          color: '#999',
-          fontSize: '1.5rem',
-          padding: '0.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '2px',
-          userSelect: 'none'
         }}
-        title="Drag to reorder"
-      >
-        <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
-        <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
-        <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
-      </div>
+        onMouseLeave={(e) => {
+          e.currentTarget.style.borderColor = '#e0e0e0'
+          e.currentTarget.style.transform = 'translateX(0)'
+        }}
+        >
+          {/* Drag Handle */}
+          <div style={{
+            cursor: 'grab',
+            color: '#999',
+            fontSize: '1.5rem',
+            padding: '0.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            userSelect: 'none'
+          }}
+          title="Drag to reorder"
+          >
+            <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
+            <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
+            <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
+          </div>
 
-      <input
-        type="checkbox"
-        checked={log?.is_done || false}
-        onChange={(e) => {
-          e.stopPropagation()
-        }}
-        style={{ 
-          cursor: 'pointer', 
-          width: '22px', 
-          height: '22px',
-          accentColor: '#4caf50',
-          pointerEvents: 'none'
-        }}
-      />
-      <span style={{
-        flex: 1,
-        textDecoration: log?.is_done ? 'line-through' : 'none',
-        color: log?.is_done ? '#666' : '#333',
-        fontWeight: '500',
-        fontSize: '1rem',
-        display: 'flex',
-        alignItems: 'center',
-        gap: '0.75rem',
-        flexWrap: 'wrap'
-      }}>
-        <span>{item.name}</span>
-        {hasCalorieBurn && (
-          <span style={{
-            padding: '0.35rem 0.75rem',
-            background: 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)',
-            color: 'white',
-            borderRadius: '6px',
-            fontSize: '0.8rem',
-            fontWeight: '700',
-            boxShadow: '0 2px 8px rgba(255,107,107,0.3)',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.35rem'
-          }}>
-            🔥 Burn {metadata.calories_burn} cal
-          </span>
-        )}
-      </span>
-      
-      <div style={{ display: 'flex', gap: '0.5rem' }} onClick={(e) => e.stopPropagation()}>
-        {hasCalorieBurn && (
-          <button
-            onClick={() => openEditModal(item)}
-            title="Edit Calorie Burn"
+          <span style={{ flex: 1, fontWeight: '500', fontSize: '1rem' }}>{item.name}</span>
+          <input
+            type="number"
+            step={metadata?.unit === 'gram' ? '1' : metadata?.unit === 'unit' ? '1' : '0.5'}
+            min="0"
+            value={log?.value || ''}
+            onChange={(e) => updateDietValue(item, e.target.value)}
+            placeholder="0"
             style={{
-              background: '#ff9800',
-              color: 'white',
-              border: 'none',
-              padding: '0.5rem 0.75rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.9rem',
-              transition: 'all 0.2s',
+              padding: '0.75rem',
+              border: '2px solid #ddd',
+              borderRadius: '8px',
+              width: '120px',
+              fontSize: '1rem',
+              textAlign: 'center',
               fontWeight: '600'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.background = '#f57c00'}
-            onMouseLeave={(e) => e.currentTarget.style.background = '#ff9800'}
-          >
-            ✏️
-          </button>
-        )}
-        
-        <button
-          onClick={() => deleteItem(item.id)}
-          title="Delete"
-          style={{
-            background: '#ff6b6b',
-            color: 'white',
-            border: 'none',
-            padding: '0.5rem 0.75rem',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            fontSize: '0.9rem',
-            transition: 'all 0.2s'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
-          onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
-        >
-          🗑️
-        </button>
-      </div>
-    </div>
-  )
-}
+          />
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button
+              onClick={() => openMacroModal(item)}
+              title="View Macro"
+              style={{
+                background: '#4caf50',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#45a049'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#4caf50'}
+            >
+              📊
+            </button>
+            <button
+              onClick={() => openEditModal(item)}
+              title="Edit"
+              style={{
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
+            >
+              ✏️
+            </button>
+            <button
+              onClick={() => deleteItem(item.id)}
+              title="Delete"
+              style={{
+                background: '#ff6b6b',
+                color: 'white',
+                border: 'none',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
+              onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
+            >
+              🗑️
+            </button>
+          </div>
+        </div>
+      )
+    }
 
-    // ROUTINE and SUPPLEMENT items - MAKE ENTIRE ROW CLICKABLE
+    // ROUTINE and SUPPLEMENT items
     return (
       <div 
         key={item.id} 
         onClick={(e) => {
-          // Don't toggle if clicking on buttons
-          if ((e.target as HTMLElement).closest('button')) {
+          if ((e.target as HTMLElement).closest('button') || (e.target as HTMLElement).closest('[data-drag-handle]')) {
             return
           }
           toggleChecklistItem(item)
@@ -876,6 +731,26 @@ const renderChecklistItem = (item: ChecklistItem, index: number) => {
           e.currentTarget.style.transform = 'translateX(0)'
         }}
       >
+        {/* Drag Handle */}
+        <div 
+          data-drag-handle
+          style={{
+            cursor: 'grab',
+            color: '#999',
+            fontSize: '1.5rem',
+            padding: '0.5rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            userSelect: 'none'
+          }}
+          title="Drag to reorder"
+        >
+          <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
+          <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
+          <span style={{ height: '3px', width: '20px', background: '#999', borderRadius: '2px' }}></span>
+        </div>
+
         <input
           type="checkbox"
           checked={log?.is_done || false}
@@ -1295,12 +1170,11 @@ const renderChecklistItem = (item: ChecklistItem, index: number) => {
             ▼
           </span>
         </button>
-       // Around line 850+
-{sectionsExpanded.routine && (
-  <div style={{ padding: '2rem' }}>
-    {routineItems.map((item, index) => renderChecklistItem(item, index))}
-  </div>
-)}
+        {sectionsExpanded.routine && (
+          <div style={{ padding: '2rem' }}>
+            {routineItems.map((item, index) => renderChecklistItem(item, index))}
+          </div>
+        )}
       </div>
 
       {/* Supplements Section - Collapsible */}
@@ -1339,7 +1213,7 @@ const renderChecklistItem = (item: ChecklistItem, index: number) => {
         </button>
         {sectionsExpanded.supplements && (
           <div style={{ padding: '2rem' }}>
-            {supplementItems.map(renderChecklistItem)}
+            {supplementItems.map((item, index) => renderChecklistItem(item, index))}
           </div>
         )}
       </div>
@@ -1380,7 +1254,7 @@ const renderChecklistItem = (item: ChecklistItem, index: number) => {
         </button>
         {sectionsExpanded.diet && (
           <div style={{ padding: '2rem' }}>
-            {dietItems.map(renderChecklistItem)}
+            {dietItems.map((item, index) => renderChecklistItem(item, index))}
           </div>
         )}
       </div>
