@@ -1213,7 +1213,7 @@ export const DailyChecklist = () => {
         </button>
         {sectionsExpanded.supplements && (
           <div style={{ padding: '2rem' }}>
-            {supplementItems.map((item, index) => renderChecklistItem(item, index))}
+            {supplementItems.map(renderChecklistItem)}
           </div>
         )}
       </div>
@@ -1254,7 +1254,7 @@ export const DailyChecklist = () => {
         </button>
         {sectionsExpanded.diet && (
           <div style={{ padding: '2rem' }}>
-            {dietItems.map((item, index) => renderChecklistItem(item, index))}
+            {dietItems.map(renderChecklistItem)}
           </div>
         )}
       </div>
