@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { supabase } from '../lib/supabase'
-import { useAuth } from '../hooks/useAuth'
-import type { DailyTodo } from '../types'
+import { supabase } from '../../lib/supabase'
+import { useAuth } from '../../hooks/useAuth'
+import type { DailyTodo } from '../../types'
 
 export const TodoList = () => {
   const { user } = useAuth()
@@ -144,24 +144,13 @@ export const TodoList = () => {
     }
   }
 
-  const getPriorityLabel = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return '🔴 HIGH'
-      case 'MEDIUM': return '🟡 MEDIUM'
-      case 'LOW': return '🟢 LOW'
-      default: return priority
-    }
-  }
-
   const sortTodosByPriority = (todoList: DailyTodo[]) => {
-    const priorityOrder = { HIGH: 0, MEDIUM: 1, LOW: 2 }
+    const priorityOrder: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
     return [...todoList].sort((a, b) => {
-      // Incomplete tasks first
       if (a.is_done !== b.is_done) {
         return a.is_done ? 1 : -1
       }
-      // Then by priority
-      return priorityOrder[a.priority] - priorityOrder[b.priority]
+      return (priorityOrder[a.priority] || 1) - (priorityOrder[b.priority] || 1)
     })
   }
 
