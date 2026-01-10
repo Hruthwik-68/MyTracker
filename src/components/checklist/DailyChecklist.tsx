@@ -573,7 +573,7 @@ export const DailyChecklist = () => {
     setSectionsExpanded(prev => ({ ...prev, [section]: !prev[section] }))
   }
 
-  const renderChecklistItem = (item: ChecklistItem, index: number) => {
+  const renderChecklistItem = (item: ChecklistItem) => {
     const log = getLogForItem(item.id)
     const metadata = item.metadata as any
     const hasCalorieBurn = metadata?.calories_burn !== undefined && metadata?.calories_burn > 0
@@ -1172,7 +1172,7 @@ export const DailyChecklist = () => {
         </button>
         {sectionsExpanded.routine && (
           <div style={{ padding: '2rem' }}>
-            {routineItems.map((item, index) => renderChecklistItem(item, index))}
+            {routineItems.map(renderChecklistItem)}
           </div>
         )}
       </div>
