@@ -26,7 +26,6 @@ export const TodoList = () => {
     try {
       const today = new Date().toISOString().split('T')[0]
 
-      // Load today's todos + incomplete todos from previous days
       const { data } = await supabase
         .from('daily_todos')
         .select('*')
@@ -144,6 +143,15 @@ export const TodoList = () => {
     }
   }
 
+  const getPriorityEmoji = (priority: string) => {
+    switch (priority) {
+      case 'HIGH': return '🔴'
+      case 'MEDIUM': return '🟡'
+      case 'LOW': return '🟢'
+      default: return '⚪'
+    }
+  }
+
   const sortTodosByPriority = (todoList: DailyTodo[]) => {
     const priorityOrder: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
     return [...todoList].sort((a, b) => {
@@ -159,9 +167,10 @@ export const TodoList = () => {
       display: 'flex', 
       justifyContent: 'center', 
       alignItems: 'center', 
-      minHeight: '400px',
+      minHeight: '100vh',
       flexDirection: 'column',
-      gap: '1rem'
+      gap: '1rem',
+      padding: '2rem'
     }}>
       <div style={{
         width: '60px',
@@ -171,7 +180,7 @@ export const TodoList = () => {
         borderRadius: '50%',
         animation: 'spin 1s linear infinite'
       }}></div>
-      <p style={{ color: '#667eea', fontSize: '1.2rem', fontWeight: '600' }}>Loading todos...</p>
+      <p style={{ color: '#667eea', fontSize: '1.1rem', fontWeight: '600', textAlign: 'center' }}>Loading...</p>
     </div>
   )
 
@@ -186,14 +195,14 @@ export const TodoList = () => {
   ) => (
     <div style={{
       background: 'white',
-      borderRadius: '16px',
-      padding: '2rem',
-      boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+      borderRadius: '12px',
+      padding: '1rem',
+      boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
       border: '1px solid #f0f0f0'
     }}>
       <h2 style={{ 
-        fontSize: '1.8rem', 
-        marginBottom: '1.5rem', 
+        fontSize: '1.3rem', 
+        marginBottom: '1rem', 
         color: '#667eea',
         display: 'flex',
         alignItems: 'center',
@@ -202,12 +211,12 @@ export const TodoList = () => {
         {icon} {title}
       </h2>
 
-      {/* Add Task Input */}
+      {/* Add Task Input - Mobile Optimized */}
       <div style={{ 
         display: 'flex', 
-        gap: '1rem', 
-        marginBottom: '2rem',
-        flexWrap: 'wrap'
+        flexDirection: 'column',
+        gap: '0.5rem', 
+        marginBottom: '1rem'
       }}>
         <input
           type="text"
@@ -217,60 +226,55 @@ export const TodoList = () => {
             [category === 'COMMON' ? 'common' : 'dsa']: e.target.value
           })}
           onKeyPress={(e) => e.key === 'Enter' && addTodo(category)}
-          placeholder={`Add ${category === 'COMMON' ? 'a common' : 'DSA'} task...`}
+          placeholder={`Add ${category === 'COMMON' ? 'common' : 'DSA'} task...`}
           style={{
-            flex: 1,
-            minWidth: '250px',
-            padding: '1rem',
+            width: '100%',
+            padding: '0.75rem',
             border: '2px solid #e0e0e0',
-            borderRadius: '12px',
-            fontSize: '1rem',
-            transition: 'border-color 0.3s'
+            borderRadius: '8px',
+            fontSize: '0.9rem'
           }}
-          onFocus={(e) => e.target.style.borderColor = '#667eea'}
-          onBlur={(e) => e.target.style.borderColor = '#e0e0e0'}
         />
         
-        <select
-          value={category === 'COMMON' ? newPriority.common : newPriority.dsa}
-          onChange={(e) => setNewPriority({
-            ...newPriority,
-            [category === 'COMMON' ? 'common' : 'dsa']: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW'
-          })}
-          style={{
-            padding: '1rem',
-            border: '2px solid #e0e0e0',
-            borderRadius: '12px',
-            fontSize: '1rem',
-            background: 'white',
-            cursor: 'pointer',
-            minWidth: '150px'
-          }}
-        >
-          <option value="HIGH">🔴 HIGH</option>
-          <option value="MEDIUM">🟡 MEDIUM</option>
-          <option value="LOW">🟢 LOW</option>
-        </select>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <select
+            value={category === 'COMMON' ? newPriority.common : newPriority.dsa}
+            onChange={(e) => setNewPriority({
+              ...newPriority,
+              [category === 'COMMON' ? 'common' : 'dsa']: e.target.value as 'HIGH' | 'MEDIUM' | 'LOW'
+            })}
+            style={{
+              flex: 1,
+              padding: '0.75rem',
+              border: '2px solid #e0e0e0',
+              borderRadius: '8px',
+              fontSize: '0.85rem',
+              background: 'white',
+              cursor: 'pointer'
+            }}
+          >
+            <option value="HIGH">🔴 HIGH</option>
+            <option value="MEDIUM">🟡 MED</option>
+            <option value="LOW">🟢 LOW</option>
+          </select>
 
-        <button
-          onClick={() => addTodo(category)}
-          style={{
-            padding: '1rem 2rem',
-            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            color: 'white',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontWeight: '700',
-            fontSize: '1rem',
-            transition: 'transform 0.2s',
-            boxShadow: '0 4px 15px rgba(102,126,234,0.3)'
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          ➕ Add
-        </button>
+          <button
+            onClick={() => addTodo(category)}
+            style={{
+              flex: 1,
+              padding: '0.75rem',
+              background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '700',
+              fontSize: '0.85rem'
+            }}
+          >
+            ➕ Add
+          </button>
+        </div>
       </div>
 
       {/* Todo List */}
@@ -278,14 +282,14 @@ export const TodoList = () => {
         <p style={{ 
           textAlign: 'center', 
           color: '#999', 
-          padding: '2rem',
-          fontSize: '1.1rem',
+          padding: '1.5rem',
+          fontSize: '0.9rem',
           fontStyle: 'italic'
         }}>
           No todos yet
         </p>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {todoList.map(todo => {
             const today = new Date().toISOString().split('T')[0]
             const isOld = todo.date < today
@@ -295,106 +299,118 @@ export const TodoList = () => {
                 key={todo.id}
                 style={{
                   display: 'flex',
-                  alignItems: 'center',
-                  gap: '1rem',
-                  padding: '1rem',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  padding: '0.75rem',
                   background: todo.is_done 
                     ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' 
                     : isOld 
                       ? 'linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%)'
                       : 'white',
                   border: `2px solid ${todo.is_done ? '#4caf50' : isOld ? '#ff9800' : '#e0e0e0'}`,
-                  borderRadius: '12px',
-                  transition: 'all 0.3s ease',
-                  boxShadow: todo.is_done ? '0 4px 12px rgba(76,175,80,0.2)' : '0 2px 8px rgba(0,0,0,0.05)'
+                  borderRadius: '8px',
+                  transition: 'all 0.3s ease'
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={todo.is_done}
-                  onChange={() => toggleTodo(todo)}
-                  style={{
-                    width: '22px',
-                    height: '22px',
-                    cursor: 'pointer',
-                    accentColor: '#4caf50'
-                  }}
-                />
+                {/* Top Row: Checkbox + Task */}
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={todo.is_done}
+                    onChange={() => toggleTodo(todo)}
+                    style={{
+                      width: '20px',
+                      height: '20px',
+                      cursor: 'pointer',
+                      accentColor: '#4caf50',
+                      marginTop: '2px',
+                      flexShrink: 0
+                    }}
+                  />
 
-                <span style={{
-                  flex: 1,
-                  textDecoration: todo.is_done ? 'line-through' : 'none',
-                  color: todo.is_done ? '#666' : '#333',
-                  fontWeight: '500',
-                  fontSize: '1rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.25rem'
+                  <span style={{
+                    flex: 1,
+                    textDecoration: todo.is_done ? 'line-through' : 'none',
+                    color: todo.is_done ? '#666' : '#333',
+                    fontWeight: '500',
+                    fontSize: '0.9rem',
+                    wordBreak: 'break-word'
+                  }}>
+                    {todo.task}
+                  </span>
+                </div>
+
+                {/* Old Task Indicator */}
+                {isOld && !todo.is_done && (
+                  <div style={{
+                    fontSize: '0.7rem',
+                    color: '#ff9800',
+                    fontWeight: '600',
+                    paddingLeft: '26px'
+                  }}>
+                    📅 From {new Date(todo.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                  </div>
+                )}
+
+                {/* Bottom Row: Priority + Delete */}
+                <div style={{ 
+                  display: 'flex', 
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  paddingLeft: '26px'
                 }}>
-                  <span>{todo.task}</span>
-                  {isOld && !todo.is_done && (
+                  {!todo.is_done ? (
+                    <select
+                      value={todo.priority}
+                      onChange={(e) => changePriority(todo, e.target.value as 'HIGH' | 'MEDIUM' | 'LOW')}
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        border: `2px solid ${getPriorityColor(todo.priority)}`,
+                        borderRadius: '6px',
+                        background: 'white',
+                        color: getPriorityColor(todo.priority),
+                        fontWeight: '700',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      <option value="HIGH">🔴 HIGH</option>
+                      <option value="MEDIUM">🟡 MED</option>
+                      <option value="LOW">🟢 LOW</option>
+                    </select>
+                  ) : (
                     <span style={{
+                      flex: 1,
+                      padding: '0.5rem',
+                      background: '#4caf50',
+                      color: 'white',
+                      borderRadius: '6px',
+                      fontWeight: '700',
                       fontSize: '0.75rem',
-                      color: '#ff9800',
-                      fontWeight: '600'
+                      textAlign: 'center'
                     }}>
-                      📅 From {new Date(todo.date).toLocaleDateString()}
+                      ✓ Done
                     </span>
                   )}
-                </span>
 
-                {!todo.is_done && (
-                  <select
-                    value={todo.priority}
-                    onChange={(e) => changePriority(todo, e.target.value as 'HIGH' | 'MEDIUM' | 'LOW')}
+                  <button
+                    onClick={() => deleteTodo(todo.id)}
+                    title="Delete"
                     style={{
-                      padding: '0.5rem 1rem',
-                      border: `2px solid ${getPriorityColor(todo.priority)}`,
-                      borderRadius: '8px',
-                      background: 'white',
-                      color: getPriorityColor(todo.priority),
-                      fontWeight: '700',
+                      padding: '0.5rem 0.75rem',
+                      background: '#ff6b6b',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '6px',
                       cursor: 'pointer',
-                      fontSize: '0.9rem'
+                      fontSize: '0.9rem',
+                      flexShrink: 0
                     }}
                   >
-                    <option value="HIGH">🔴 HIGH</option>
-                    <option value="MEDIUM">🟡 MEDIUM</option>
-                    <option value="LOW">🟢 LOW</option>
-                  </select>
-                )}
-
-                {todo.is_done && (
-                  <span style={{
-                    padding: '0.5rem 1rem',
-                    background: '#4caf50',
-                    color: 'white',
-                    borderRadius: '8px',
-                    fontWeight: '700',
-                    fontSize: '0.9rem'
-                  }}>
-                    ✓ Done
-                  </span>
-                )}
-
-                <button
-                  onClick={() => deleteTodo(todo.id)}
-                  title="Delete"
-                  style={{
-                    padding: '0.5rem 0.75rem',
-                    background: '#ff6b6b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontSize: '1rem',
-                    transition: 'all 0.2s'
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.background = '#ff5252'}
-                  onMouseLeave={(e) => e.currentTarget.style.background = '#ff6b6b'}
-                >
-                  🗑️
-                </button>
+                    🗑️
+                  </button>
+                </div>
               </div>
             )
           })}
@@ -404,19 +420,26 @@ export const TodoList = () => {
   )
 
   return (
-    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '2rem' }}>
+    <div style={{ 
+      maxWidth: '100%', 
+      margin: '0 auto', 
+      padding: '0.5rem',
+      minHeight: '100vh',
+      background: '#f5f7fa'
+    }}>
       <h1 style={{ 
-        fontSize: '3rem', 
-        marginBottom: '2rem', 
+        fontSize: '1.5rem', 
+        marginBottom: '1rem', 
         color: '#333',
         display: 'flex',
         alignItems: 'center',
-        gap: '1rem'
+        gap: '0.5rem',
+        padding: '0 0.5rem'
       }}>
         📝 Daily Todo
       </h1>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         {renderTodoSection('Common Tasks', '💼', 'COMMON', commonTodos)}
         {renderTodoSection('DSA Plan', '🧠', 'DSA', dsaTodos)}
       </div>
@@ -425,6 +448,12 @@ export const TodoList = () => {
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
+        }
+        
+        @media (max-width: 768px) {
+          body {
+            font-size: 14px;
+          }
         }
       `}</style>
     </div>
