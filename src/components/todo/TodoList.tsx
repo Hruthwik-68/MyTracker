@@ -143,14 +143,14 @@ export const TodoList = () => {
     }
   }
 
-  const getPriorityEmoji = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return '🔴'
-      case 'MEDIUM': return '🟡'
-      case 'LOW': return '🟢'
-      default: return '⚪'
-    }
-  }
+  // const getPriorityEmoji = (priority: string) => {
+  //   switch (priority) {
+  //     case 'HIGH': return '🔴'
+  //     case 'MEDIUM': return '🟡'
+  //     case 'LOW': return '🟢'
+  //     default: return '⚪'
+  //   }
+  // }
 
   const sortTodosByPriority = (todoList: DailyTodo[]) => {
     const priorityOrder: Record<string, number> = { HIGH: 0, MEDIUM: 1, LOW: 2 }
