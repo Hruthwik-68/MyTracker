@@ -3260,7 +3260,72 @@ export const DailyChecklist = () => {
           </div>
         )}
       </div>
+{/* Daily Stats Section */}
+      <div style={{
+        background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
+        padding: '1rem',
+        borderRadius: '12px',
+        marginBottom: '1rem'
+      }}>
+        <h2 style={{ marginBottom: '1rem', fontSize: '1.2rem', color: '#2d3436' }}>✅ Daily Self-Check</h2>
+        
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.9rem', color: '#2d3436' }}>
+            ⚡ Energy: {dailyStats.energyLevel}/10
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={dailyStats.energyLevel}
+            onChange={(e) => setDailyStats({...dailyStats, energyLevel: Number(e.target.value)})}
+            style={{ width: '100%', height: '6px', accentColor: '#fdcb6e' }}
+          />
+        </div>
 
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: '0.9rem', color: '#2d3436' }}>
+            🎯 Focus: {dailyStats.focusLevel}/10
+          </label>
+          <input
+            type="range"
+            min="1"
+            max="10"
+            value={dailyStats.focusLevel}
+            onChange={(e) => setDailyStats({...dailyStats, focusLevel: Number(e.target.value)})}
+            style={{ width: '100%', height: '6px', accentColor: '#fdcb6e' }}
+          />
+        </div>
+
+        <div style={{ marginBottom: '1rem' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem', fontWeight: '600', color: '#2d3436' }}>
+            <input
+              type="checkbox"
+              checked={dailyStats.consistency}
+              onChange={(e) => setDailyStats({...dailyStats, consistency: e.target.checked})}
+              style={{ width: '18px', height: '18px', accentColor: '#fdcb6e' }}
+            />
+            💯 Consistency
+          </label>
+        </div>
+
+        <button
+          onClick={saveDailyStats}
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: '#2d3436',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '700',
+            fontSize: '0.9rem'
+          }}
+        >
+          💾 Save Stats & Streak
+        </button>
+      </div>
       <button
         onClick={() => setShowAddItem(true)}
         style={{
