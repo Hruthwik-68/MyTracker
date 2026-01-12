@@ -22,6 +22,18 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
   } | null>(null)
   const [loadingDayData, setLoadingDayData] = useState(false)
 
+  // Mobile detection
+  const [isMobile, setIsMobile] = useState(false)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   useEffect(() => {
     loadStreaks()
     loadNotes()
@@ -82,7 +94,6 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     setSelectedDate(dateStr)
 
     try {
-      // Load stats
       const { data: statsData } = await supabase
         .from('daily_stats')
         .select('*')
@@ -90,21 +101,18 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         .eq('date', dateStr)
         .single()
 
-      // Load checklists
       const { data: checklistData } = await supabase
         .from('daily_checklists')
         .select('*')
         .eq('user_id', user.id)
         .eq('date', dateStr)
 
-      // Load checklist items
       const { data: itemsData } = await supabase
         .from('checklist_items')
         .select('*')
         .eq('user_id', user.id)
         .order('order_index', { ascending: true })
 
-      // Load note
       const { data: noteData } = await supabase
         .from('notes')
         .select('*')
@@ -147,15 +155,12 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const streak = streaks.find(s => s.date === dateStr)
     
-    if (!streak) return '#fee2e2' // Missed - light red
+    if (!streak) return '#fee2e2'
     
-    // If streak exists but we need to calculate completion percentage
     return getCompletionColor(dateStr)
   }
 
   const getCompletionColor = (dateStr: string) => {
-    // This will be calculated dynamically based on stats
-    // For now, return green if streak exists
     const streak = streaks.find(s => s.date === dateStr)
     return streak?.is_success ? '#4ade80' : '#fee2e2'
   }
@@ -208,7 +213,6 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     const dietItems = dayData.items.filter(i => i.category === 'DIET')
     const routineItems = dayData.items.filter(i => i.category === 'ROUTINE')
 
-    // Calculate intake from diet
     dietItems.forEach(item => {
       const log = dayData.checklists.find(l => l.checklist_item_id === item.id)
       if (log && log.value) {
@@ -229,7 +233,6 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
       }
     })
 
-    // Calculate calories burned from exercises
     routineItems.forEach(item => {
       const log = dayData.checklists.find(l => l.checklist_item_id === item.id)
       const metadata = item.metadata as any
@@ -263,15 +266,15 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
       justifyContent: 'center',
       alignItems: 'center',
       zIndex: 1000,
-      padding: '1rem'
+      padding: isMobile ? '0.5rem' : '1rem'
     }}>
       <div style={{
         background: 'white',
-        padding: '2rem',
-        borderRadius: '16px',
-        maxWidth: selectedDate ? '1100px' : '650px',
+        padding: isMobile ? '1rem' : '2rem',
+        borderRadius: isMobile ? '12px' : '16px',
+        maxWidth: '100%',
         width: '100%',
-        maxHeight: '90vh',
+        maxHeight: '95vh',
         overflow: 'auto',
         boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
         transition: 'all 0.3s ease'
@@ -280,9 +283,9 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '1.5rem'
+          marginBottom: isMobile ? '0.75rem' : '1.5rem'
         }}>
-          <h2 style={{ margin: 0, fontSize: '1.8rem' }}>🔥 Streak Calendar</h2>
+          <h2 style={{ margin: 0, fontSize: isMobile ? '1.2rem' : '1.8rem' }}>🔥 Streak Calendar</h2>
           <button
             onClick={onClose}
             style={{
@@ -291,53 +294,59 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
               fontSize: '1.5rem',
               cursor: 'pointer',
               color: '#666',
-              transition: 'color 0.2s'
+              padding: '0.5rem'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.color = '#333'}
-            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
           >
             ✕
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: '2rem', flexWrap: 'wrap' }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: selectedDate && !isMobile ? 'row' : 'column',
+          gap: isMobile ? '1rem' : '2rem'
+        }}>
           {/* Calendar */}
-          <div style={{ flex: selectedDate ? '0 0 400px' : '1', minWidth: '350px' }}>
+          <div style={{ 
+            flex: selectedDate && !isMobile ? '0 0 400px' : '1',
+            minWidth: 'auto',
+            width: '100%'
+          }}>
             <div style={{
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
-              marginBottom: '1rem'
+              marginBottom: '0.75rem'
             }}>
               <button onClick={previousMonth} style={{
                 background: '#667eea',
                 color: 'white',
                 border: 'none',
-                padding: '0.5rem 1rem',
+                padding: isMobile ? '0.5rem 0.75rem' : '0.5rem 1rem',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 fontWeight: '600',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
-              >
+                fontSize: isMobile ? '1rem' : '1.2rem'
+              }}>
                 ←
               </button>
-              <span style={{ fontWeight: 'bold', fontSize: '1.1rem' }}>{monthName}</span>
+              <span style={{ 
+                fontWeight: 'bold', 
+                fontSize: isMobile ? '0.85rem' : '1.1rem',
+                textAlign: 'center'
+              }}>
+                {monthName}
+              </span>
               <button onClick={nextMonth} style={{
                 background: '#667eea',
                 color: 'white',
                 border: 'none',
-                padding: '0.5rem 1rem',
+                padding: isMobile ? '0.5rem 0.75rem' : '0.5rem 1rem',
                 borderRadius: '8px',
                 cursor: 'pointer',
                 fontWeight: '600',
-                transition: 'all 0.2s'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.background = '#5568d3'}
-              onMouseLeave={(e) => e.currentTarget.style.background = '#667eea'}
-              >
+                fontSize: isMobile ? '1rem' : '1.2rem'
+              }}>
                 →
               </button>
             </div>
@@ -345,14 +354,14 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(7, 1fr)',
-              gap: '0.5rem',
-              marginBottom: '1rem'
+              gap: isMobile ? '0.25rem' : '0.5rem',
+              marginBottom: isMobile ? '0.5rem' : '1rem'
             }}>
-              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
-                <div key={day} style={{
+              {(isMobile ? ['S', 'M', 'T', 'W', 'T', 'F', 'S'] : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']).map((day, idx) => (
+                <div key={idx} style={{
                   textAlign: 'center',
                   fontWeight: 'bold',
-                  fontSize: '0.875rem',
+                  fontSize: isMobile ? '0.65rem' : '0.875rem',
                   color: '#666'
                 }}>
                   {day}
@@ -376,7 +385,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(7, 1fr)',
-                gap: '0.5rem'
+                gap: isMobile ? '0.25rem' : '0.5rem'
               }}>
                 {getDaysInMonth().map((day, index) => {
                   const dateStr = day ? `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : null
@@ -393,7 +402,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                         display: 'flex',
                         justifyContent: 'center',
                         alignItems: 'center',
-                        borderRadius: '8px',
+                        borderRadius: isMobile ? '6px' : '8px',
                         background: day === null ? 'transparent' : 
                                    isSelected ? '#667eea' :
                                    getStreakColor(day),
@@ -401,30 +410,21 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                                isSelected ? 'white' :
                                isStreakDay(day) ? 'white' : '#dc2626',
                         fontWeight: 'bold',
+                        fontSize: isMobile ? '0.7rem' : '0.9rem',
                         cursor: day ? 'pointer' : 'default',
                         transition: 'all 0.2s ease',
-                        border: isSelected ? '3px solid #764ba2' : 'none',
+                        border: isSelected ? `${isMobile ? '2px' : '3px'} solid #764ba2` : 'none',
                         boxShadow: isSelected ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
-                      }}
-                      onMouseEnter={(e) => {
-                        if (day && !isSelected) {
-                          e.currentTarget.style.transform = 'scale(1.1)'
-                          e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)'
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.transform = 'scale(1)'
-                        e.currentTarget.style.boxShadow = isSelected ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
                       }}
                     >
                       {day}
                       {hasNoteMarker && (
                         <div style={{
                           position: 'absolute',
-                          top: '4px',
-                          right: '4px',
-                          width: '6px',
-                          height: '6px',
+                          top: isMobile ? '2px' : '4px',
+                          right: isMobile ? '2px' : '4px',
+                          width: isMobile ? '4px' : '6px',
+                          height: isMobile ? '4px' : '6px',
                           background: '#000',
                           borderRadius: '50%',
                           boxShadow: '0 0 3px rgba(0,0,0,0.5)'
@@ -437,34 +437,34 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
             )}
 
             <div style={{
-              marginTop: '1.5rem',
+              marginTop: isMobile ? '0.75rem' : '1.5rem',
               display: 'flex',
-              gap: '1rem',
+              gap: isMobile ? '0.5rem' : '1rem',
               justifyContent: 'center',
               flexWrap: 'wrap'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 <div style={{
-                  width: '20px',
-                  height: '20px',
+                  width: isMobile ? '14px' : '20px',
+                  height: isMobile ? '14px' : '20px',
                   background: '#4ade80',
                   borderRadius: '4px'
                 }}></div>
-                <span style={{ fontSize: '0.875rem' }}>Completed</span>
+                <span style={{ fontSize: isMobile ? '0.7rem' : '0.875rem' }}>Complete</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 <div style={{
-                  width: '20px',
-                  height: '20px',
+                  width: isMobile ? '14px' : '20px',
+                  height: isMobile ? '14px' : '20px',
                   background: '#fee2e2',
                   borderRadius: '4px'
                 }}></div>
-                <span style={{ fontSize: '0.875rem' }}>Missed</span>
+                <span style={{ fontSize: isMobile ? '0.7rem' : '0.875rem' }}>Missed</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                 <div style={{
-                  width: '20px',
-                  height: '20px',
+                  width: isMobile ? '14px' : '20px',
+                  height: isMobile ? '14px' : '20px',
                   background: 'white',
                   border: '2px solid #000',
                   borderRadius: '4px',
@@ -474,31 +474,43 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                     position: 'absolute',
                     top: '1px',
                     right: '1px',
-                    width: '4px',
-                    height: '4px',
+                    width: isMobile ? '3px' : '4px',
+                    height: isMobile ? '3px' : '4px',
                     background: '#000',
                     borderRadius: '50%'
                   }}></div>
                 </div>
-                <span style={{ fontSize: '0.875rem' }}>Has Note</span>
+                <span style={{ fontSize: isMobile ? '0.7rem' : '0.875rem' }}>Note</span>
               </div>
             </div>
           </div>
 
-          {/* Day Details - Scrollable Compact */}
+          {/* Day Details */}
           {selectedDate && (
             <div style={{ 
-              flex: 1, 
-              borderLeft: '2px solid #e0e0e0', 
-              paddingLeft: '2rem',
-              minWidth: '320px',
-              maxHeight: '600px',
+              flex: 1,
+              borderLeft: isMobile ? 'none' : '2px solid #e0e0e0',
+              borderTop: isMobile ? '2px solid #e0e0e0' : 'none',
+              paddingLeft: isMobile ? '0' : '2rem',
+              paddingTop: isMobile ? '1rem' : '0',
+              minWidth: 'auto',
+              width: '100%',
+              maxHeight: isMobile ? 'none' : '600px',
               overflowY: 'auto'
             }}>
-              <h3 style={{ marginBottom: '1rem', color: '#667eea', fontSize: '1.3rem', position: 'sticky', top: 0, background: 'white', paddingBottom: '0.5rem', zIndex: 10 }}>
+              <h3 style={{ 
+                marginBottom: '1rem', 
+                color: '#667eea', 
+                fontSize: isMobile ? '0.9rem' : '1.3rem',
+                position: isMobile ? 'static' : 'sticky',
+                top: 0,
+                background: 'white',
+                paddingBottom: '0.5rem',
+                zIndex: 10
+              }}>
                 📅 {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
-                  weekday: 'long', 
-                  month: 'long', 
+                  weekday: isMobile ? 'short' : 'long',
+                  month: 'short',
                   day: 'numeric',
                   year: 'numeric'
                 })}
@@ -515,45 +527,53 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}></div>
-                  <p style={{ marginTop: '1rem', color: '#666' }}>Loading day data...</p>
+                  <p style={{ marginTop: '1rem', color: '#666', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>Loading...</p>
                 </div>
               ) : dayData ? (
                 <>
                   {/* Note Display */}
                   {dayData.note && (
                     <div style={{ 
-                      marginBottom: '1.5rem',
+                      marginBottom: '1rem',
                       background: 'linear-gradient(135deg, #fff9e6 0%, #ffe8b3 100%)',
-                      padding: '1rem',
-                      borderRadius: '12px',
+                      padding: isMobile ? '0.75rem' : '1rem',
+                      borderRadius: isMobile ? '8px' : '12px',
                       border: '2px solid #ffd700'
                     }}>
-                      <h4 style={{ marginBottom: '0.75rem', color: '#b8860b', fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <h4 style={{ 
+                        marginBottom: '0.5rem', 
+                        color: '#b8860b', 
+                        fontSize: isMobile ? '0.8rem' : '1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem'
+                      }}>
                         📝 Note
                       </h4>
                       <p style={{ 
                         margin: 0, 
                         color: '#666', 
-                        fontSize: '0.9rem',
-                        lineHeight: '1.6',
-                        whiteSpace: 'pre-wrap'
+                        fontSize: isMobile ? '0.75rem' : '0.9rem',
+                        lineHeight: '1.5',
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word'
                       }}>
                         {dayData.note.content}
                       </p>
                     </div>
                   )}
 
-                  {/* Compact Stats Grid */}
+                  {/* Stats */}
                   {dayData.stats && (
                     <div style={{ 
-                      marginBottom: '1.5rem',
+                      marginBottom: '1rem',
                       background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
-                      padding: '1rem',
-                      borderRadius: '12px',
+                      padding: isMobile ? '0.75rem' : '1rem',
+                      borderRadius: isMobile ? '8px' : '12px',
                       border: '1px solid #e0e7ff'
                     }}>
-                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>📊 Stats</h4>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>📊 Stats</h4>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: isMobile ? '0.75rem' : '0.85rem' }}>
                         <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
                           <span>⚡ Energy:</span>
                           <strong style={{ float: 'right' }}>{dayData.stats.energy_level}/10</strong>
@@ -586,29 +606,29 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                     </div>
                   )}
 
-                  {/* Nutrition Stats - Compact */}
+                  {/* Nutrition */}
                   {(() => {
                     const nutrition = calculateNutrition()
                     const netCalories = nutrition.calories - nutrition.caloriesBurned
                     return (
                       <div style={{ 
-                        marginBottom: '1.5rem',
+                        marginBottom: '1rem',
                         background: 'linear-gradient(135deg, #e8fff0 0%, #d0ffe0 100%)',
-                        padding: '1rem',
-                        borderRadius: '12px',
+                        padding: isMobile ? '0.75rem' : '1rem',
+                        borderRadius: isMobile ? '8px' : '12px',
                         border: '1px solid #b3ffc8'
                       }}>
-                        <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>🍽️ Nutrition</h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                        <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>🍽️ Nutrition</h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: isMobile ? '0.75rem' : '0.85rem' }}>
                           <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
-                            <span>🔥 Net Cal:</span>
+                            <span>🔥 Net:</span>
                             <strong style={{ float: 'right', color: netCalories < 0 ? '#dc2626' : '#16a34a' }}>
                               {netCalories}
                             </strong>
                           </div>
-                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: '0.75rem', color: '#666' }}>
+                          <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: isMobile ? '0.65rem' : '0.75rem', color: '#666' }}>
                             <span>{nutrition.calories} in</span>
-                            <span style={{ float: 'right' }}>-{nutrition.caloriesBurned} out</span>
+                            <span style={{ float: 'right' }}>-{nutrition.caloriesBurned}</span>
                           </div>
                           <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
                             <span>💪 Protein:</span>
@@ -636,13 +656,13 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   })()}
 
                   {/* Checklist Progress */}
-                  <div style={{ marginBottom: '1.5rem' }}>
-                    <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>✅ Checklist Progress</h4>
+                  <div style={{ marginBottom: '1rem' }}>
+                    <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>✅ Progress</h4>
                     <div style={{
                       background: 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)',
-                      borderRadius: '12px',
-                      padding: '1rem',
-                      fontSize: '1.2rem',
+                      borderRadius: isMobile ? '8px' : '12px',
+                      padding: isMobile ? '0.75rem' : '1rem',
+                      fontSize: isMobile ? '1rem' : '1.2rem',
                       fontWeight: 'bold',
                       textAlign: 'center',
                       color: '#2e7d32',
@@ -655,12 +675,12 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   {/* Completed Items */}
                   {dayData.checklists.filter(c => c.is_done).length > 0 && (
                     <div>
-                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: '1rem' }}>✅ Completed</h4>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>✅ Completed</h4>
                       <div style={{ 
                         display: 'flex', 
                         flexDirection: 'column', 
                         gap: '0.5rem',
-                        maxHeight: '200px',
+                        maxHeight: isMobile ? '150px' : '200px',
                         overflowY: 'auto'
                       }}>
                         {dayData.checklists.filter(c => c.is_done).map(log => {
@@ -670,14 +690,15 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                               padding: '0.5rem 0.75rem',
                               background: '#e8f5e9',
                               borderRadius: '8px',
-                              fontSize: '0.85rem',
+                              fontSize: isMobile ? '0.75rem' : '0.85rem',
                               color: '#2e7d32',
                               border: '1px solid #c8e6c9',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '0.5rem'
+                              gap: '0.5rem',
+                              wordBreak: 'break-word'
                             }}>
-                              <span style={{ fontSize: '0.9rem' }}>✓</span>
+                              <span style={{ fontSize: '0.9rem', flexShrink: 0 }}>✓</span>
                               {item.name}
                             </div>
                           ) : null
@@ -692,10 +713,11 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                       textAlign: 'center',
                       padding: '2rem',
                       color: '#999',
-                      fontStyle: 'italic'
+                      fontStyle: 'italic',
+                      fontSize: isMobile ? '0.8rem' : '0.9rem'
                     }}>
                       <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
-                      <p>No data recorded for this day</p>
+                      <p>No data for this day</p>
                     </div>
                   )}
                 </>
@@ -704,7 +726,8 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   textAlign: 'center',
                   padding: '2rem',
                   color: '#999',
-                  fontStyle: 'italic'
+                  fontStyle: 'italic',
+                  fontSize: isMobile ? '0.8rem' : '0.9rem'
                 }}>
                   <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📭</div>
                   <p>No data for this day</p>
