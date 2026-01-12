@@ -3280,7 +3280,343 @@ export const DailyChecklist = () => {
       </button>
 
       {showStreaks && <StreakCalendar onClose={() => setShowStreaks(false)} />}
+{/* Notes Modal */}
+      {showNotesModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>📝 Note</h2>
+            <textarea
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              placeholder="Write your note..."
+              style={{
+                width: '100%',
+                minHeight: '200px',
+                padding: '0.75rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                resize: 'vertical'
+              }}
+            />
+            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
+              <button onClick={saveNote} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Save
+              </button>
+              {todayNote && (
+                <button onClick={deleteNote} style={{
+                  flex: 1,
+                  padding: '0.75rem',
+                  background: '#ff6b6b',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '700'
+                }}>
+                  Delete
+                </button>
+              )}
+              <button onClick={() => setShowNotesModal(false)} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#ccc',
+                color: '#333',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      {/* Macro Modal */}
+      {showMacroModal && viewingMacroItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            maxWidth: '400px',
+            width: '100%'
+          }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>📊 {viewingMacroItem.name}</h2>
+            {viewingMacroItem.metadata && (
+              <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
+                <p style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: '#666' }}>
+                  Per {(viewingMacroItem.metadata as any).unit}:
+                </p>
+                <div style={{ display: 'grid', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>Calories:</span>
+                    <strong>{(viewingMacroItem.metadata as any).calories || 0}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>Protein:</span>
+                    <strong>{(viewingMacroItem.metadata as any).protein || 0}g</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>Carbs:</span>
+                    <strong>{(viewingMacroItem.metadata as any).carbs || 0}g</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>Fats:</span>
+                    <strong>{(viewingMacroItem.metadata as any).fats || 0}g</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                    <span>Fiber:</span>
+                    <strong>{(viewingMacroItem.metadata as any).fiber || 0}g</strong>
+                  </div>
+                </div>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={() => { setShowMacroModal(false); openEditModal(viewingMacroItem); }} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Edit
+              </button>
+              <button onClick={() => { setShowMacroModal(false); setViewingMacroItem(null); }} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#ccc',
+                color: '#333',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Item Modal */}
+      {showAddItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>➕ Add Item</h2>
+            <input
+              type="text"
+              value={newItem.name}
+              onChange={(e) => setNewItem({...newItem, name: e.target.value})}
+              placeholder="Item name"
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                marginBottom: '1rem'
+              }}
+            />
+            <select
+              value={newItem.category}
+              onChange={(e) => setNewItem({...newItem, category: e.target.value as any})}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                marginBottom: '1rem'
+              }}
+            >
+              <option value="ROUTINE">Routine</option>
+              <option value="SUPPLEMENT">Supplement</option>
+              <option value="DIET">Diet</option>
+            </select>
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={addNewItem} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Add
+              </button>
+              <button onClick={() => setShowAddItem(false)} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#ccc',
+                color: '#333',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Item Modal */}
+      {showEditItem && editingItem && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0,0,0,0.6)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 1000,
+          padding: '1rem'
+        }}>
+          <div style={{
+            background: 'white',
+            padding: '1.5rem',
+            borderRadius: '12px',
+            maxWidth: '500px',
+            width: '100%',
+            maxHeight: '90vh',
+            overflow: 'auto'
+          }}>
+            <h2 style={{ marginBottom: '1rem', fontSize: '1.3rem' }}>✏️ Edit Item</h2>
+            <input
+              type="text"
+              value={editingItem.name}
+              onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
+              style={{
+                width: '100%',
+                padding: '0.75rem',
+                border: '2px solid #ddd',
+                borderRadius: '8px',
+                fontSize: '0.9rem',
+                marginBottom: '1rem'
+              }}
+            />
+            {editingItem.category === 'ROUTINE' && (editingItem.metadata as any)?.calories_burn !== undefined && (
+              <input
+                type="number"
+                min="0"
+                value={(editingItem.metadata as any).calories_burn || 0}
+                onChange={(e) => setEditingItem({
+                  ...editingItem, 
+                  metadata: {...editingItem.metadata, calories_burn: parseInt(e.target.value) || 0}
+                })}
+                placeholder="Calories burned"
+                style={{
+                  width: '100%',
+                  padding: '0.75rem',
+                  border: '2px solid #ddd',
+                  borderRadius: '8px',
+                  fontSize: '0.9rem',
+                  marginBottom: '1rem'
+                }}
+              />
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem' }}>
+              <button onClick={updateItem} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#667eea',
+                color: 'white',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Update
+              </button>
+              <button onClick={() => { setShowEditItem(false); setEditingItem(null); }} style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: '#ccc',
+                color: '#333',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: '700'
+              }}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <style>{`
   @keyframes spin {
     0% { transform: rotate(0deg); }
