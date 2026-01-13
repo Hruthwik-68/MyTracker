@@ -272,7 +272,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         background: 'white',
         padding: isMobile ? '1rem' : '2rem',
         borderRadius: isMobile ? '12px' : '16px',
-        maxWidth: '100%',
+        maxWidth: selectedDate && !isMobile ? '1000px' : isMobile ? '100%' : '650px',
         width: '100%',
         maxHeight: '95vh',
         overflow: 'auto',
