@@ -231,6 +231,7 @@ export const Navbar = () => {
         }
         @media (max-width: 768px) {
           .mobile-only-links { display: flex !important; }
+          .mobile-timer { display: block !important; }
         }
       `}</style>
     </nav>
