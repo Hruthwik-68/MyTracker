@@ -197,6 +197,7 @@ export const Navbar = () => {
               <div className="mobile-only-links" style={{ display: 'none', flexDirection: 'column', gap: '0.25rem' }}>
                 <Link to="/plans" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '0.6rem', borderRadius: '6px', color: THEME.textMuted, textDecoration: 'none', fontSize: '0.9rem' }}>Plans</Link>
                 <Link to="/checklist" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '0.6rem', borderRadius: '6px', color: THEME.textMuted, textDecoration: 'none', fontSize: '0.9rem' }}>Dashboard</Link>
+                <Link to="/stats" onClick={() => setMenuOpen(false)} style={{ display: 'block', padding: '0.6rem', borderRadius: '6px', color: THEME.textMuted, textDecoration: 'none', fontSize: '0.9rem' }}>Stats</Link>
                 <div style={{ height: '1px', background: THEME.border, margin: '0.25rem 0' }}></div>
               </div>
 

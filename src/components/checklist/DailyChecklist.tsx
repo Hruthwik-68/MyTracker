@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
 import type { ChecklistItem, DailyChecklist as DailyChecklistType, Note } from '../../types'
@@ -10,6 +11,7 @@ import type { StatDefinition, DailyStatValue } from '../../types'
 
 export const DailyChecklist = () => {
   const { user } = useAuth()
+  const navigate = useNavigate()
   const [items, setItems] = useState<ChecklistItem[]>([])
   const [logs, setLogs] = useState<DailyChecklistType[]>([])
   const [loading, setLoading] = useState(true)
@@ -1240,10 +1242,17 @@ export const DailyChecklist = () => {
             { id: 'ROUTINE', label: 'Routine', icon: '📅' },
             { id: 'SUPPLEMENTS', label: 'Vitamins', icon: '💊' },
             { id: 'DIET', label: 'Diet', icon: '🍽️' },
+            { id: 'STATS_PAGE', label: 'Stats', icon: '📊' },
           ].map(item => (
             <button
               key={item.id}
-              onClick={() => setActiveSection(item.id as any)}
+              onClick={() => {
+                if (item.id === 'STATS_PAGE') {
+                  navigate('/stats')
+                } else {
+                  setActiveSection(item.id as any)
+                }
+              }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
