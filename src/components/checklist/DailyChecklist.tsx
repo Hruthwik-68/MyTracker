@@ -146,193 +146,193 @@ const [showTodosModal, setShowTodosModal] = useState(false)
       alert('❌ Failed to delete note')
     }
   }
-const loadChecklistTodos = async () => {
-  if (!user) return
-  try {
-    const today = new Date().toISOString().split('T')[0]
+// const loadChecklistTodos = async () => {
+//   if (!user) return
+//   try {
+//     const today = new Date().toISOString().split('T')[0]
     
-    const { data: todayTodos } = await supabase
-      .from('checklist_todos')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('date', today)
-      .order('created_at', { ascending: true })
+//     const { data: todayTodos } = await supabase
+//       .from('checklist_todos')
+//       .select('*')
+//       .eq('user_id', user.id)
+//       .eq('date', today)
+//       .order('created_at', { ascending: true })
 
-    const { data: incompleteTodos } = await supabase
-      .from('checklist_todos')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_done', false)
-      .lt('date', today)
-      .order('original_date', { ascending: true })
+//     const { data: incompleteTodos } = await supabase
+//       .from('checklist_todos')
+//       .select('*')
+//       .eq('user_id', user.id)
+//       .eq('is_done', false)
+//       .lt('date', today)
+//       .order('original_date', { ascending: true })
 
-    if (incompleteTodos && incompleteTodos.length > 0) {
-      const carriedForwardTodos = incompleteTodos.map(todo => ({
-        user_id: user.id,
-        date: today,
-        task: todo.task,
-        is_done: false,
-        tags: todo.tags,
-        original_date: todo.original_date
-      }))
+//     if (incompleteTodos && incompleteTodos.length > 0) {
+//       const carriedForwardTodos = incompleteTodos.map(todo => ({
+//         user_id: user.id,
+//         date: today,
+//         task: todo.task,
+//         is_done: false,
+//         tags: todo.tags,
+//         original_date: todo.original_date
+//       }))
       
-      const { data: newTodos } = await supabase
-        .from('checklist_todos')
-        .insert(carriedForwardTodos)
-        .select()
+//       const { data: newTodos } = await supabase
+//         .from('checklist_todos')
+//         .insert(carriedForwardTodos)
+//         .select()
       
-      setChecklistTodos([...(todayTodos || []), ...(newTodos || [])])
-    } else {
-      setChecklistTodos(todayTodos || [])
-    }
-  } catch (error) {
-    console.error('Error loading todos:', error)
-  }
-}
+//       setChecklistTodos([...(todayTodos || []), ...(newTodos || [])])
+//     } else {
+//       setChecklistTodos(todayTodos || [])
+//     }
+//   } catch (error) {
+//     console.error('Error loading todos:', error)
+//   }
+// }
 
-const loadTodoTags = async () => {
-  if (!user) return
-  try {
-    const { data } = await supabase
-      .from('todo_tags')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('name')
+// const loadTodoTags = async () => {
+//   if (!user) return
+//   try {
+//     const { data } = await supabase
+//       .from('todo_tags')
+//       .select('*')
+//       .eq('user_id', user.id)
+//       .order('name')
 
-    if (data) setTodoTags(data)
-  } catch (error) {
-    console.error('Error loading tags:', error)
-  }
-}
+//     if (data) setTodoTags(data)
+//   } catch (error) {
+//     console.error('Error loading tags:', error)
+//   }
+// }
 
-const addChecklistTodo = async () => {
-  if (!user || !newTodoText.trim()) return
+// const addChecklistTodo = async () => {
+//   if (!user || !newTodoText.trim()) return
   
-  try {
-    const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase
-      .from('checklist_todos')
-      .insert([{
-        user_id: user.id,
-        date: today,
-        task: newTodoText,
-        is_done: false,
-        tags: selectedTags,
-        original_date: today
-      }])
-      .select()
-      .single()
+//   try {
+//     const today = new Date().toISOString().split('T')[0]
+//     const { data } = await supabase
+//       .from('checklist_todos')
+//       .insert([{
+//         user_id: user.id,
+//         date: today,
+//         task: newTodoText,
+//         is_done: false,
+//         tags: selectedTags,
+//         original_date: today
+//       }])
+//       .select()
+//       .single()
 
-    if (data) {
-      setChecklistTodos([...checklistTodos, data])
-      setNewTodoText('')
-      setSelectedTags([])
-    }
-  } catch (error) {
-    console.error('Error adding todo:', error)
-    alert('❌ Failed to add todo')
-  }
-}
+//     if (data) {
+//       setChecklistTodos([...checklistTodos, data])
+//       setNewTodoText('')
+//       setSelectedTags([])
+//     }
+//   } catch (error) {
+//     console.error('Error adding todo:', error)
+//     alert('❌ Failed to add todo')
+//   }
+// }
 
-const toggleChecklistTodo = async (todo: ChecklistTodo) => {
-  try {
-    const { data } = await supabase
-      .from('checklist_todos')
-      .update({ is_done: !todo.is_done })
-      .eq('id', todo.id)
-      .select()
-      .single()
+// const toggleChecklistTodo = async (todo: ChecklistTodo) => {
+//   try {
+//     const { data } = await supabase
+//       .from('checklist_todos')
+//       .update({ is_done: !todo.is_done })
+//       .eq('id', todo.id)
+//       .select()
+//       .single()
 
-    if (data) {
-      setChecklistTodos(checklistTodos.map(t => t.id === data.id ? data : t))
-    }
-  } catch (error) {
-    console.error('Error toggling todo:', error)
-  }
-}
+//     if (data) {
+//       setChecklistTodos(checklistTodos.map(t => t.id === data.id ? data : t))
+//     }
+//   } catch (error) {
+//     console.error('Error toggling todo:', error)
+//   }
+// }
 
-const deleteChecklistTodo = async (todoId: string) => {
-  if (!confirm('Delete this todo?')) return
+// const deleteChecklistTodo = async (todoId: string) => {
+//   if (!confirm('Delete this todo?')) return
   
-  try {
-    await supabase.from('checklist_todos').delete().eq('id', todoId)
-    setChecklistTodos(checklistTodos.filter(t => t.id !== todoId))
-  } catch (error) {
-    console.error('Error deleting todo:', error)
-  }
-}
+//   try {
+//     await supabase.from('checklist_todos').delete().eq('id', todoId)
+//     setChecklistTodos(checklistTodos.filter(t => t.id !== todoId))
+//   } catch (error) {
+//     console.error('Error deleting todo:', error)
+//   }
+// }
 
-const createTag = async () => {
-  if (!user || !newTagName.trim()) return
+// const createTag = async () => {
+//   if (!user || !newTagName.trim()) return
   
-  try {
-    const { data } = await supabase
-      .from('todo_tags')
-      .insert([{
-        user_id: user.id,
-        name: newTagName.trim(),
-        color: newTagColor
-      }])
-      .select()
-      .single()
+//   try {
+//     const { data } = await supabase
+//       .from('todo_tags')
+//       .insert([{
+//         user_id: user.id,
+//         name: newTagName.trim(),
+//         color: newTagColor
+//       }])
+//       .select()
+//       .single()
 
-    if (data) {
-      setTodoTags([...todoTags, data])
-      setNewTagName('')
-      setNewTagColor(DEFAULT_TAG_COLORS[0])
-      alert('✅ Tag created!')
-    }
-  } catch (error: any) {
-    if (error.code === '23505') {
-      alert('❌ Tag name already exists')
-    } else {
-      console.error('Error creating tag:', error)
-      alert('❌ Failed to create tag')
-    }
-  }
-}
+//     if (data) {
+//       setTodoTags([...todoTags, data])
+//       setNewTagName('')
+//       setNewTagColor(DEFAULT_TAG_COLORS[0])
+//       alert('✅ Tag created!')
+//     }
+//   } catch (error: any) {
+//     if (error.code === '23505') {
+//       alert('❌ Tag name already exists')
+//     } else {
+//       console.error('Error creating tag:', error)
+//       alert('❌ Failed to create tag')
+//     }
+//   }
+// }
 
-const deleteTag = async (tagId: string, tagName: string) => {
-  if (!confirm(`Delete tag "${tagName}"?`)) return
+// const deleteTag = async (tagId: string, tagName: string) => {
+//   if (!confirm(`Delete tag "${tagName}"?`)) return
   
-  try {
-    await supabase.from('todo_tags').delete().eq('id', tagId)
+//   try {
+//     await supabase.from('todo_tags').delete().eq('id', tagId)
     
-    const todosWithTag = checklistTodos.filter(t => t.tags.includes(tagName))
-    for (const todo of todosWithTag) {
-      await supabase
-        .from('checklist_todos')
-        .update({ tags: todo.tags.filter(t => t !== tagName) })
-        .eq('id', todo.id)
-    }
+//     const todosWithTag = checklistTodos.filter(t => t.tags.includes(tagName))
+//     for (const todo of todosWithTag) {
+//       await supabase
+//         .from('checklist_todos')
+//         .update({ tags: todo.tags.filter(t => t !== tagName) })
+//         .eq('id', todo.id)
+//     }
     
-    setTodoTags(todoTags.filter(t => t.id !== tagId))
-    await loadChecklistTodos()
-    alert('✅ Tag deleted')
-  } catch (error) {
-    console.error('Error deleting tag:', error)
-    alert('❌ Failed to delete tag')
-  }
-}
+//     setTodoTags(todoTags.filter(t => t.id !== tagId))
+//     await loadChecklistTodos()
+//     alert('✅ Tag deleted')
+//   } catch (error) {
+//     console.error('Error deleting tag:', error)
+//     alert('❌ Failed to delete tag')
+//   }
+// }
 
-const toggleTagSelection = (tagName: string) => {
-  if (selectedTags.includes(tagName)) {
-    setSelectedTags(selectedTags.filter(t => t !== tagName))
-  } else {
-    setSelectedTags([...selectedTags, tagName])
-  }
-}
+// const toggleTagSelection = (tagName: string) => {
+//   if (selectedTags.includes(tagName)) {
+//     setSelectedTags(selectedTags.filter(t => t !== tagName))
+//   } else {
+//     setSelectedTags([...selectedTags, tagName])
+//   }
+// }
 
-const getDaysAgo = (originalDate: string) => {
-  const today = new Date().toISOString().split('T')[0]
-  if (originalDate === today) return 0
+// const getDaysAgo = (originalDate: string) => {
+//   const today = new Date().toISOString().split('T')[0]
+//   if (originalDate === today) return 0
   
-  const orig = new Date(originalDate)
-  const todayDate = new Date(today)
-  const diffTime = Math.abs(todayDate.getTime() - orig.getTime())
-  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-  return diffDays
-}
+//   const orig = new Date(originalDate)
+//   const todayDate = new Date(today)
+//   const diffTime = Math.abs(todayDate.getTime() - orig.getTime())
+//   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+//   return diffDays
+// }
   const saveNote = async () => {
     if (!user) return
     
