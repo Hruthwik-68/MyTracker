@@ -4,7 +4,28 @@ import { useAuth } from '../../hooks/useAuth'
 import type { ChecklistItem, DailyChecklist as DailyChecklistType, Note } from '../../types'
 import { NutritionStats } from './NutritionStats'
 import { StreakCalendar } from './StreakCalendar'
+import type { ChecklistTodo, TodoTag } from '../../types'  // After adding to types/index.ts
 
+const THEME = {
+  bgPrimary: '#0a0e27',
+  bgSecondary: '#1a1f3a',
+  bgTertiary: '#2d3358',
+  textPrimary: '#f8fafc',
+  textSecondary: '#94a3b8',
+  textMuted: '#64748b',
+  borderPrimary: '#334155',
+  borderAccent: '#475569',
+  success: '#10b981',
+  warning: '#f59e0b',
+  error: '#ef4444',
+  gradientPurple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+  gradientBlue: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+  gradientGold: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+  gradientOrange: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+  gradientGreen: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+}
+
+const DEFAULT_TAG_COLORS = ['#667eea', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
 export const DailyChecklist = () => {
   const { user } = useAuth()
   const [items, setItems] = useState<ChecklistItem[]>([])
@@ -19,6 +40,14 @@ export const DailyChecklist = () => {
   const [viewingMacroItem, setViewingMacroItem] = useState<ChecklistItem | null>(null)
   const [todayNote, setTodayNote] = useState<Note | null>(null)
   const [noteContent, setNoteContent] = useState('')
+  const [checklistTodos, setChecklistTodos] = useState<ChecklistTodo[]>([])
+const [todoTags, setTodoTags] = useState<TodoTag[]>([])
+const [newTodoText, setNewTodoText] = useState('')
+const [selectedTags, setSelectedTags] = useState<string[]>([])
+const [showTagManager, setShowTagManager] = useState(false)
+const [newTagName, setNewTagName] = useState('')
+const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLORS[0])
+const [showTodosModal, setShowTodosModal] = useState(false)
   
   // Drag and Drop state
   const [draggedItem, setDraggedItem] = useState<ChecklistItem | null>(null)
@@ -77,8 +106,12 @@ export const DailyChecklist = () => {
   })
 
   useEffect(() => {
+    if (user) {  // ✅ ADD THIS CHECK
     loadChecklistData()
     loadTodayNote()
+    loadChecklistTodos()
+    loadTodoTags()
+  } 
   }, [user])
 
   const loadTodayNote = async () => {
@@ -121,7 +154,193 @@ export const DailyChecklist = () => {
       alert('❌ Failed to delete note')
     }
   }
+const loadChecklistTodos = async () => {
+  if (!user) return
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    
+    const { data: todayTodos } = await supabase
+      .from('checklist_todos')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('date', today)
+      .order('created_at', { ascending: true })
 
+    const { data: incompleteTodos } = await supabase
+      .from('checklist_todos')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_done', false)
+      .lt('date', today)
+      .order('original_date', { ascending: true })
+
+    if (incompleteTodos && incompleteTodos.length > 0) {
+      const carriedForwardTodos = incompleteTodos.map(todo => ({
+        user_id: user.id,
+        date: today,
+        task: todo.task,
+        is_done: false,
+        tags: todo.tags,
+        original_date: todo.original_date
+      }))
+      
+      const { data: newTodos } = await supabase
+        .from('checklist_todos')
+        .insert(carriedForwardTodos)
+        .select()
+      
+      setChecklistTodos([...(todayTodos || []), ...(newTodos || [])])
+    } else {
+      setChecklistTodos(todayTodos || [])
+    }
+  } catch (error) {
+    console.error('Error loading todos:', error)
+  }
+}
+
+const loadTodoTags = async () => {
+  if (!user) return
+  try {
+    const { data } = await supabase
+      .from('todo_tags')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('name')
+
+    if (data) setTodoTags(data)
+  } catch (error) {
+    console.error('Error loading tags:', error)
+  }
+}
+
+const addChecklistTodo = async () => {
+  if (!user || !newTodoText.trim()) return
+  
+  try {
+    const today = new Date().toISOString().split('T')[0]
+    const { data } = await supabase
+      .from('checklist_todos')
+      .insert([{
+        user_id: user.id,
+        date: today,
+        task: newTodoText,
+        is_done: false,
+        tags: selectedTags,
+        original_date: today
+      }])
+      .select()
+      .single()
+
+    if (data) {
+      setChecklistTodos([...checklistTodos, data])
+      setNewTodoText('')
+      setSelectedTags([])
+    }
+  } catch (error) {
+    console.error('Error adding todo:', error)
+    alert('❌ Failed to add todo')
+  }
+}
+
+const toggleChecklistTodo = async (todo: ChecklistTodo) => {
+  try {
+    const { data } = await supabase
+      .from('checklist_todos')
+      .update({ is_done: !todo.is_done })
+      .eq('id', todo.id)
+      .select()
+      .single()
+
+    if (data) {
+      setChecklistTodos(checklistTodos.map(t => t.id === data.id ? data : t))
+    }
+  } catch (error) {
+    console.error('Error toggling todo:', error)
+  }
+}
+
+const deleteChecklistTodo = async (todoId: string) => {
+  if (!confirm('Delete this todo?')) return
+  
+  try {
+    await supabase.from('checklist_todos').delete().eq('id', todoId)
+    setChecklistTodos(checklistTodos.filter(t => t.id !== todoId))
+  } catch (error) {
+    console.error('Error deleting todo:', error)
+  }
+}
+
+const createTag = async () => {
+  if (!user || !newTagName.trim()) return
+  
+  try {
+    const { data } = await supabase
+      .from('todo_tags')
+      .insert([{
+        user_id: user.id,
+        name: newTagName.trim(),
+        color: newTagColor
+      }])
+      .select()
+      .single()
+
+    if (data) {
+      setTodoTags([...todoTags, data])
+      setNewTagName('')
+      setNewTagColor(DEFAULT_TAG_COLORS[0])
+      alert('✅ Tag created!')
+    }
+  } catch (error: any) {
+    if (error.code === '23505') {
+      alert('❌ Tag name already exists')
+    } else {
+      console.error('Error creating tag:', error)
+      alert('❌ Failed to create tag')
+    }
+  }
+}
+
+const deleteTag = async (tagId: string, tagName: string) => {
+  if (!confirm(`Delete tag "${tagName}"?`)) return
+  
+  try {
+    await supabase.from('todo_tags').delete().eq('id', tagId)
+    
+    const todosWithTag = checklistTodos.filter(t => t.tags.includes(tagName))
+    for (const todo of todosWithTag) {
+      await supabase
+        .from('checklist_todos')
+        .update({ tags: todo.tags.filter(t => t !== tagName) })
+        .eq('id', todo.id)
+    }
+    
+    setTodoTags(todoTags.filter(t => t.id !== tagId))
+    await loadChecklistTodos()
+    alert('✅ Tag deleted')
+  } catch (error) {
+    console.error('Error deleting tag:', error)
+    alert('❌ Failed to delete tag')
+  }
+}
+
+const toggleTagSelection = (tagName: string) => {
+  if (selectedTags.includes(tagName)) {
+    setSelectedTags(selectedTags.filter(t => t !== tagName))
+  } else {
+    setSelectedTags([...selectedTags, tagName])
+  }
+}
+
+const getDaysAgo = (originalDate: string) => {
+  const today = new Date().toISOString().split('T')[0]
+  if (originalDate === today) return 0
+  
+  const orig = new Date(originalDate)
+  const todayDate = new Date(today)
+  const diffTime = Math.abs(todayDate.getTime() - orig.getTime())
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+  return diffDays
+}
   const saveNote = async () => {
     if (!user) return
     
@@ -934,44 +1153,56 @@ export const DailyChecklist = () => {
         <h1 style={{ margin: 0, fontSize: isMobile ? '1.3rem' : '1.8rem', marginBottom: '0.5rem' }}>✅ Daily Checklist</h1>
         <p style={{ margin: 0, fontSize: isMobile ? '0.8rem' : '0.95rem', opacity: 0.9 }}>📅 {formattedDate}</p>
         
-        <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-          <button
-            onClick={() => setShowNotesModal(true)}
-            style={{
-              flex: 1,
-              minWidth: '120px',
-              padding: isMobile ? '0.6rem' : '0.75rem',
-              background: todayNote ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white',
-              border: `2px solid ${todayNote ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.3)'}`,
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '700',
-              fontSize: isMobile ? '0.85rem' : '0.95rem'
-            }}
-          >
-            📝 Note
-          </button>
-          <button
-            onClick={() => setShowStreaks(true)}
-            style={{
-              flex: 1,
-              minWidth: '120px',
-              padding: isMobile ? '0.6rem' : '0.75rem',
-              background: 'rgba(255,255,255,0.2)',
-              backdropFilter: 'blur(10px)',
-              color: 'white',
-              border: '2px solid rgba(255,255,255,0.3)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '700',
-              fontSize: isMobile ? '0.85rem' : '0.95rem'
-            }}
-          >
-            🔥 Streaks
-          </button>
-        </div>
+       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
+  <button onClick={() => setShowNotesModal(true)} style={{
+    flex: 1,
+    minWidth: '100px',
+    padding: isMobile ? '0.6rem' : '0.75rem',
+    background: todayNote ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(10px)',
+    color: 'white',
+    border: `2px solid ${todayNote ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '700',
+    fontSize: isMobile ? '0.85rem' : '0.95rem'
+  }}>
+    📝 Notes
+  </button>
+  
+  {/* ADD THIS NEW BUTTON */}
+  <button onClick={() => setShowTodosModal(true)} style={{
+    flex: 1,
+    minWidth: '100px',
+    padding: isMobile ? '0.6rem' : '0.75rem',
+    background: checklistTodos.some(t => !t.is_done) ? 'rgba(79,172,254,0.3)' : 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(10px)',
+    color: 'white',
+    border: `2px solid ${checklistTodos.some(t => !t.is_done) ? 'rgba(79,172,254,0.5)' : 'rgba(255,255,255,0.3)'}`,
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '700',
+    fontSize: isMobile ? '0.85rem' : '0.95rem'
+  }}>
+    ✅ Todos
+  </button>
+  
+  <button onClick={() => setShowStreaks(true)} style={{
+    flex: 1,
+    minWidth: '100px',
+    padding: isMobile ? '0.6rem' : '0.75rem',
+    background: 'rgba(255,255,255,0.2)',
+    backdropFilter: 'blur(10px)',
+    color: 'white',
+    border: '2px solid rgba(255,255,255,0.3)',
+    borderRadius: '8px',
+    cursor: 'pointer',
+    fontWeight: '700',
+    fontSize: isMobile ? '0.85rem' : '0.95rem'
+  }}>
+    🔥 Streaks
+  </button>
+</div>
       </div>
 
       {/* Stats Section */}
@@ -2045,6 +2276,312 @@ export const DailyChecklist = () => {
           </div>
         </div>
       )}
+      {showTodosModal && (
+  <div style={{
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: 'rgba(0,0,0,0.7)',
+    backdropFilter: 'blur(5px)',
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    padding: '1rem'
+  }}>
+    <div style={{
+      background: THEME.bgSecondary,
+      padding: isMobile ? '1.5rem' : '2rem',
+      borderRadius: '12px',
+      maxWidth: isMobile ? '100%' : '600px',
+      width: '100%',
+      maxHeight: '90vh',
+      overflow: 'auto',
+      border: `1px solid ${THEME.borderPrimary}`,
+      boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+        <h2 style={{ margin: 0, fontSize: isMobile ? '1.3rem' : '1.5rem', color: THEME.textPrimary }}>✅ Daily Todos</h2>
+        <button onClick={() => setShowTodosModal(false)} style={{
+          background: THEME.bgTertiary,
+          border: 'none',
+          color: THEME.textPrimary,
+          fontSize: '1.5rem',
+          cursor: 'pointer',
+          width: '32px',
+          height: '32px',
+          borderRadius: '6px'
+        }}>×</button>
+      </div>
+
+      {/* Add Todo Section */}
+      <div style={{
+        background: THEME.gradientBlue,
+        padding: '1rem',
+        borderRadius: '8px',
+        marginBottom: '1rem'
+      }}>
+        <input
+          type="text"
+          value={newTodoText}
+          onChange={(e) => setNewTodoText(e.target.value)}
+          onKeyPress={(e) => e.key === 'Enter' && addChecklistTodo()}
+          placeholder="Add new todo..."
+          style={{
+            width: '100%',
+            padding: '0.75rem',
+            background: 'rgba(255,255,255,0.2)',
+            border: '2px solid rgba(255,255,255,0.3)',
+            borderRadius: '8px',
+            color: 'white',
+            fontSize: '0.95rem',
+            marginBottom: '0.75rem'
+          }}
+        />
+
+        {/* Tag Selection */}
+        {todoTags.length > 0 && (
+          <div style={{ marginBottom: '0.75rem' }}>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {todoTags.map(tag => (
+                <button
+                  key={tag.id}
+                  onClick={() => toggleTagSelection(tag.name)}
+                  style={{
+                    background: selectedTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.2)',
+                    color: 'white',
+                    border: selectedTags.includes(tag.name) ? `2px solid white` : `2px solid rgba(255,255,255,0.3)`,
+                    padding: '0.4rem 0.8rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem',
+                    fontWeight: selectedTags.includes(tag.name) ? '700' : '500'
+                  }}
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button onClick={addChecklistTodo} style={{
+            flex: 1,
+            padding: '0.75rem',
+            background: 'rgba(255,255,255,0.3)',
+            backdropFilter: 'blur(10px)',
+            color: 'white',
+            border: '2px solid rgba(255,255,255,0.5)',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontWeight: '700',
+            fontSize: '0.95rem'
+          }}>
+            ➕ Add Todo
+          </button>
+          <button onClick={() => setShowTagManager(!showTagManager)} style={{
+            padding: '0.75rem',
+            background: 'rgba(255,255,255,0.2)',
+            color: 'white',
+            border: '2px solid rgba(255,255,255,0.3)',
+            borderRadius: '8px',
+            cursor: 'pointer',
+            fontSize: '0.95rem'
+          }}>
+            🏷️
+          </button>
+        </div>
+      </div>
+
+      {/* Tag Manager */}
+      {showTagManager && (
+        <div style={{
+          background: THEME.bgTertiary,
+          padding: '1rem',
+          borderRadius: '8px',
+          marginBottom: '1rem',
+          border: `1px solid ${THEME.borderAccent}`
+        }}>
+          <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', color: THEME.textPrimary }}>🏷️ Manage Tags</h3>
+          
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <input
+              type="text"
+              value={newTagName}
+              onChange={(e) => setNewTagName(e.target.value)}
+              placeholder="Tag name"
+              style={{
+                flex: 1,
+                padding: '0.75rem',
+                background: THEME.bgSecondary,
+                border: `1px solid ${THEME.borderAccent}`,
+                borderRadius: '8px',
+                color: THEME.textPrimary,
+                fontSize: '0.9rem'
+              }}
+            />
+            <select
+              value={newTagColor}
+              onChange={(e) => setNewTagColor(e.target.value)}
+              style={{
+                padding: '0.75rem',
+                background: THEME.bgSecondary,
+                border: `1px solid ${THEME.borderAccent}`,
+                borderRadius: '8px',
+                color: THEME.textPrimary,
+                fontSize: '0.9rem'
+              }}
+            >
+              {DEFAULT_TAG_COLORS.map(color => (
+                <option key={color} value={color}>{color}</option>
+              ))}
+            </select>
+            <button onClick={createTag} style={{
+              padding: '0.75rem 1rem',
+              background: THEME.success,
+              color: 'white',
+              border: 'none',
+              borderRadius: '8px',
+              cursor: 'pointer',
+              fontWeight: '700'
+            }}>
+              ➕
+            </button>
+          </div>
+
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {todoTags.map(tag => (
+              <div key={tag.id} style={{
+                background: tag.color,
+                color: 'white',
+                padding: '0.5rem 0.75rem',
+                borderRadius: '6px',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}>
+                <span>{tag.name}</span>
+                <button onClick={() => deleteTag(tag.id, tag.name)} style={{
+                  background: 'rgba(0,0,0,0.3)',
+                  border: 'none',
+                  color: 'white',
+                  cursor: 'pointer',
+                  borderRadius: '4px',
+                  width: '20px',
+                  height: '20px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: '0.9rem'
+                }}>×</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Todos List */}
+      <div style={{ maxHeight: '400px', overflow: 'auto' }}>
+        {checklistTodos.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '2rem', color: THEME.textSecondary }}>
+            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
+            <p>No todos yet. Add your first todo above!</p>
+          </div>
+        ) : (
+          checklistTodos.map(todo => {
+            const daysAgo = getDaysAgo(todo.original_date)
+            return (
+              <div key={todo.id} style={{
+                background: todo.is_done ? THEME.gradientGreen : THEME.bgTertiary,
+                border: `1px solid ${todo.is_done ? THEME.success : THEME.borderAccent}`,
+                borderRadius: '8px',
+                padding: '1rem',
+                marginBottom: '0.75rem'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                  <input
+                    type="checkbox"
+                    checked={todo.is_done}
+                    onChange={() => toggleChecklistTodo(todo)}
+                    style={{ 
+                      width: '20px', 
+                      height: '20px', 
+                      marginTop: '2px',
+                      accentColor: THEME.success,
+                      cursor: 'pointer'
+                    }}
+                  />
+                  <div style={{ flex: 1 }}>
+                    <div style={{
+                      color: THEME.textPrimary,
+                      textDecoration: todo.is_done ? 'line-through' : 'none',
+                      fontSize: '0.95rem',
+                      marginBottom: '0.5rem',
+                      wordBreak: 'break-word'
+                    }}>
+                      {todo.task}
+                    </div>
+                    
+                    {daysAgo > 0 && (
+                      <div style={{
+                        background: THEME.gradientOrange,
+                        color: 'white',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        display: 'inline-block',
+                        marginBottom: '0.5rem',
+                        fontWeight: '600'
+                      }}>
+                        📅 Forwarded from {daysAgo} day{daysAgo > 1 ? 's' : ''} ago
+                      </div>
+                    )}
+                    
+                    {todo.tags.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                        {todo.tags.map(tagName => {
+                          const tag = todoTags.find(t => t.name === tagName)
+                          return tag ? (
+                            <span key={tagName} style={{
+                              background: tag.color,
+                              color: 'white',
+                              padding: '0.25rem 0.5rem',
+                              borderRadius: '4px',
+                              fontSize: '0.75rem',
+                              fontWeight: '600'
+                            }}>
+                              {tagName}
+                            </span>
+                          ) : null
+                        })}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => deleteChecklistTodo(todo.id)} style={{
+                    background: THEME.error,
+                    color: 'white',
+                    border: 'none',
+                    padding: '0.4rem 0.6rem',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: '0.85rem'
+                  }}>
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            )
+          })
+        )}
+      </div>
+    </div>
+  </div>
+)}
+
 
       <style>{`
         @keyframes spin {
@@ -2058,6 +2595,7 @@ export const DailyChecklist = () => {
           }
         }
       `}</style>
+      
     </div>
   )
 }
