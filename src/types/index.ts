@@ -109,3 +109,23 @@ export interface Note {
   created_at: string
   updated_at: string
 }
+
+
+export interface ChecklistTodo {
+  id: string
+  user_id: string
+  date: string
+  task: string
+  is_done: boolean
+  tags: string[] // Array of tag names
+  created_at: string
+  original_date: string // Track when todo was first created
+}
+
+export interface TodoTag {
+  id: string
+  user_id: string
+  name: string
+  color: string // Hex color
+  created_at: string
+}
