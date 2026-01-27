@@ -1,7 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
-import { HNBAuth } from 'hnb-auth-ui'
-import './styles/hnb-auth-ui.css'
+import { Login } from './components/auth/Login'
 import { PlansPage } from './pages/PlansPage'
 
 import { ChecklistPage } from './pages/ChecklistPage'
@@ -26,13 +25,7 @@ function App() {
   }
 
   if (!user) {
-    return (
-      <HNBAuth
-        backendUrl={import.meta.env.VITE_AUTH_BACKEND_URL || "http://localhost:4000/auth"}
-        redirectUri={window.location.origin}
-        theme="dark"
-      />
-    )
+    return <Login />
   }
 
   return (
