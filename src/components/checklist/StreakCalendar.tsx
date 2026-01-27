@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../../lib/supabase'
 import { useAuth } from '../../hooks/useAuth'
-import type { Streak, DailyStat, DailyChecklist, ChecklistItem, Note } from '../../types'
+import type { Streak, DailyStat, DailyChecklist, ChecklistItem, Note, ChecklistTodo, TodoTag } from '../../types'
 
 interface StreakCalendarProps {
   onClose: () => void
@@ -19,6 +19,8 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     checklists: DailyChecklist[]
     items: ChecklistItem[]
     note: Note | null
+    todos: ChecklistTodo[]
+    todoTags: TodoTag[]
   } | null>(null)
   const [loadingDayData, setLoadingDayData] = useState(false)
 
@@ -120,11 +122,28 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         .eq('date', dateStr)
         .single()
 
+      // Fetch TODOs for this date
+      const { data: todosData } = await supabase
+        .from('checklist_todos')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', dateStr)
+        .order('created_at', { ascending: true })
+
+      // Fetch all todo tags
+      const { data: todoTagsData } = await supabase
+        .from('todo_tags')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('name')
+
       setDayData({
         stats: statsData || null,
         checklists: checklistData || [],
         items: itemsData || [],
-        note: noteData || null
+        note: noteData || null,
+        todos: todosData || [],
+        todoTags: todoTagsData || []
       })
     } catch (error) {
       console.error('Error loading day data:', error)
@@ -133,12 +152,13 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     }
   }
 
+
   const getDaysInMonth = () => {
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
     const firstDay = new Date(year, month, 1).getDay()
     const daysInMonth = new Date(year, month + 1, 0).getDate()
-    
+
     const days = []
     for (let i = 0; i < firstDay; i++) {
       days.push(null)
@@ -151,12 +171,12 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
 
   const getStreakColor = (day: number | null) => {
     if (!day) return 'transparent'
-    
+
     const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const streak = streaks.find(s => s.date === dateStr)
-    
+
     if (!streak) return '#fee2e2'
-    
+
     return getCompletionColor(dateStr)
   }
 
@@ -236,7 +256,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     routineItems.forEach(item => {
       const log = dayData.checklists.find(l => l.checklist_item_id === item.id)
       const metadata = item.metadata as any
-      
+
       if (log && log.is_done && metadata?.calories_burn) {
         caloriesBurned += metadata.calories_burn
       }
@@ -253,7 +273,17 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     }
   }
 
+  const getDaysAgo = (originalDate: string, currentDate: string) => {
+    if (originalDate === currentDate) return 0
+    const orig = new Date(originalDate)
+    const curr = new Date(currentDate)
+    const diffTime = Math.abs(curr.getTime() - orig.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays
+  }
+
   return (
+
     <div style={{
       position: 'fixed',
       top: 0,
@@ -301,13 +331,13 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
           </button>
         </div>
 
-        <div style={{ 
-          display: 'flex', 
+        <div style={{
+          display: 'flex',
           flexDirection: selectedDate && !isMobile ? 'row' : 'column',
           gap: isMobile ? '1rem' : '2rem'
         }}>
           {/* Calendar */}
-          <div style={{ 
+          <div style={{
             flex: selectedDate && !isMobile ? '0 0 400px' : '1',
             minWidth: 'auto',
             width: '100%'
@@ -330,8 +360,8 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
               }}>
                 ←
               </button>
-              <span style={{ 
-                fontWeight: 'bold', 
+              <span style={{
+                fontWeight: 'bold',
                 fontSize: isMobile ? '0.85rem' : '1.1rem',
                 textAlign: 'center'
               }}>
@@ -391,7 +421,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   const dateStr = day ? `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}` : null
                   const isSelected = dateStr === selectedDate
                   const hasNoteMarker = dateStr && hasNote(dateStr)
-                  
+
                   return (
                     <div
                       key={index}
@@ -403,12 +433,12 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                         justifyContent: 'center',
                         alignItems: 'center',
                         borderRadius: isMobile ? '6px' : '8px',
-                        background: day === null ? 'transparent' : 
-                                   isSelected ? '#667eea' :
-                                   getStreakColor(day),
-                        color: day === null ? 'transparent' : 
-                               isSelected ? 'white' :
-                               isStreakDay(day) ? 'white' : '#dc2626',
+                        background: day === null ? 'transparent' :
+                          isSelected ? '#667eea' :
+                            getStreakColor(day),
+                        color: day === null ? 'transparent' :
+                          isSelected ? 'white' :
+                            isStreakDay(day) ? 'white' : '#dc2626',
                         fontWeight: 'bold',
                         fontSize: isMobile ? '0.7rem' : '0.9rem',
                         cursor: day ? 'pointer' : 'default',
@@ -487,7 +517,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
 
           {/* Day Details */}
           {selectedDate && (
-            <div style={{ 
+            <div style={{
               flex: 1,
               borderLeft: isMobile ? 'none' : '2px solid #e0e0e0',
               borderTop: isMobile ? '2px solid #e0e0e0' : 'none',
@@ -498,9 +528,9 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
               maxHeight: isMobile ? 'none' : '600px',
               overflowY: 'auto'
             }}>
-              <h3 style={{ 
-                marginBottom: '1rem', 
-                color: '#667eea', 
+              <h3 style={{
+                marginBottom: '1rem',
+                color: '#667eea',
                 fontSize: isMobile ? '0.9rem' : '1.3rem',
                 position: isMobile ? 'static' : 'sticky',
                 top: 0,
@@ -508,7 +538,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                 paddingBottom: '0.5rem',
                 zIndex: 10
               }}>
-                📅 {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', { 
+                📅 {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
                   weekday: isMobile ? 'short' : 'long',
                   month: 'short',
                   day: 'numeric',
@@ -533,16 +563,16 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                 <>
                   {/* Note Display */}
                   {dayData.note && (
-                    <div style={{ 
+                    <div style={{
                       marginBottom: '1rem',
                       background: 'linear-gradient(135deg, #fff9e6 0%, #ffe8b3 100%)',
                       padding: isMobile ? '0.75rem' : '1rem',
                       borderRadius: isMobile ? '8px' : '12px',
                       border: '2px solid #ffd700'
                     }}>
-                      <h4 style={{ 
-                        marginBottom: '0.5rem', 
-                        color: '#b8860b', 
+                      <h4 style={{
+                        marginBottom: '0.5rem',
+                        color: '#b8860b',
                         fontSize: isMobile ? '0.8rem' : '1rem',
                         display: 'flex',
                         alignItems: 'center',
@@ -550,9 +580,9 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                       }}>
                         📝 Note
                       </h4>
-                      <p style={{ 
-                        margin: 0, 
-                        color: '#666', 
+                      <p style={{
+                        margin: 0,
+                        color: '#666',
                         fontSize: isMobile ? '0.75rem' : '0.9rem',
                         lineHeight: '1.5',
                         whiteSpace: 'pre-wrap',
@@ -565,7 +595,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
 
                   {/* Stats */}
                   {dayData.stats && (
-                    <div style={{ 
+                    <div style={{
                       marginBottom: '1rem',
                       background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
                       padding: isMobile ? '0.75rem' : '1rem',
@@ -606,12 +636,204 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                     </div>
                   )}
 
+                  {/* TODOs Section */}
+                  {dayData.todos && dayData.todos.length > 0 && selectedDate && (
+                    <div style={{
+                      marginBottom: '1rem',
+                      background: 'linear-gradient(135deg, #f0f4ff 0%, #e0e8ff 100%)',
+                      padding: isMobile ? '0.75rem' : '1rem',
+                      borderRadius: isMobile ? '8px' : '12px',
+                      border: '1px solid #c7d2fe'
+                    }}>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>📝 TODOs</h4>
+
+                      {/* Group todos by tag */}
+                      {dayData.todoTags.filter(tag =>
+                        dayData.todos.some(todo => todo.tag_id === tag.id)
+                      ).map(tag => {
+                        const tagTodos = dayData.todos.filter(todo => todo.tag_id === tag.id)
+                        const completedCount = tagTodos.filter(t => t.is_done).length
+                        const totalCount = tagTodos.length
+
+                        return (
+                          <div key={tag.id} style={{ marginBottom: '0.75rem' }}>
+                            {/* Tag Header */}
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.5rem',
+                              marginBottom: '0.5rem',
+                              padding: '0.5rem',
+                              background: 'white',
+                              borderRadius: '8px',
+                              border: `2px solid ${tag.color}`
+                            }}>
+                              <div style={{
+                                width: '16px',
+                                height: '16px',
+                                background: tag.color,
+                                borderRadius: '4px'
+                              }}></div>
+                              <span style={{
+                                flex: 1,
+                                fontWeight: '600',
+                                fontSize: isMobile ? '0.8rem' : '0.9rem',
+                                color: '#333'
+                              }}>
+                                {tag.name}
+                              </span>
+                              <span style={{
+                                background: completedCount === totalCount
+                                  ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+                                  : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                color: 'white',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '10px',
+                                fontSize: isMobile ? '0.7rem' : '0.75rem',
+                                fontWeight: '700'
+                              }}>
+                                {completedCount}/{totalCount}
+                              </span>
+                            </div>
+
+                            {/* Todo Items */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                              {tagTodos.map(todo => {
+                                const daysAgo = getDaysAgo(todo.original_date, selectedDate)
+                                return (
+                                  <div key={todo.id} style={{
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '0.5rem',
+                                    padding: '0.5rem',
+                                    background: todo.is_done ? '#dcfce7' : 'white',
+                                    borderRadius: '6px',
+                                    border: `1px solid ${todo.is_done ? '#86efac' : '#e0e0e0'}`,
+                                    fontSize: isMobile ? '0.75rem' : '0.85rem'
+                                  }}>
+                                    <span style={{
+                                      flexShrink: 0,
+                                      color: todo.is_done ? '#16a34a' : '#9ca3af'
+                                    }}>
+                                      {todo.is_done ? '✅' : '⬜'}
+                                    </span>
+                                    <div style={{ flex: 1 }}>
+                                      <span style={{
+                                        textDecoration: todo.is_done ? 'line-through' : 'none',
+                                        color: todo.is_done ? '#666' : '#333',
+                                        wordBreak: 'break-word'
+                                      }}>
+                                        {todo.task}
+                                      </span>
+                                      {daysAgo > 0 && (
+                                        <span style={{
+                                          display: 'inline-block',
+                                          marginLeft: '0.5rem',
+                                          background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                          color: 'white',
+                                          padding: '0.15rem 0.4rem',
+                                          borderRadius: '4px',
+                                          fontSize: isMobile ? '0.6rem' : '0.7rem',
+                                          fontWeight: '600'
+                                        }}>
+                                          📅 {daysAgo}d ago
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+
+                      {/* Todos without tags */}
+                      {dayData.todos.filter(todo => !dayData.todoTags.some(tag => tag.id === todo.tag_id)).length > 0 && (
+                        <div style={{ marginBottom: '0.75rem' }}>
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            marginBottom: '0.5rem',
+                            padding: '0.5rem',
+                            background: 'white',
+                            borderRadius: '8px',
+                            border: '2px solid #9ca3af'
+                          }}>
+                            <div style={{
+                              width: '16px',
+                              height: '16px',
+                              background: '#9ca3af',
+                              borderRadius: '4px'
+                            }}></div>
+                            <span style={{
+                              flex: 1,
+                              fontWeight: '600',
+                              fontSize: isMobile ? '0.8rem' : '0.9rem',
+                              color: '#666'
+                            }}>
+                              Other
+                            </span>
+                          </div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                            {dayData.todos.filter(todo => !dayData.todoTags.some(tag => tag.id === todo.tag_id)).map(todo => {
+                              const daysAgo = getDaysAgo(todo.original_date, selectedDate)
+                              return (
+                                <div key={todo.id} style={{
+                                  display: 'flex',
+                                  alignItems: 'flex-start',
+                                  gap: '0.5rem',
+                                  padding: '0.5rem',
+                                  background: todo.is_done ? '#dcfce7' : 'white',
+                                  borderRadius: '6px',
+                                  border: `1px solid ${todo.is_done ? '#86efac' : '#e0e0e0'}`,
+                                  fontSize: isMobile ? '0.75rem' : '0.85rem'
+                                }}>
+                                  <span style={{
+                                    flexShrink: 0,
+                                    color: todo.is_done ? '#16a34a' : '#9ca3af'
+                                  }}>
+                                    {todo.is_done ? '✅' : '⬜'}
+                                  </span>
+                                  <div style={{ flex: 1 }}>
+                                    <span style={{
+                                      textDecoration: todo.is_done ? 'line-through' : 'none',
+                                      color: todo.is_done ? '#666' : '#333',
+                                      wordBreak: 'break-word'
+                                    }}>
+                                      {todo.task}
+                                    </span>
+                                    {daysAgo > 0 && (
+                                      <span style={{
+                                        display: 'inline-block',
+                                        marginLeft: '0.5rem',
+                                        background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                                        color: 'white',
+                                        padding: '0.15rem 0.4rem',
+                                        borderRadius: '4px',
+                                        fontSize: isMobile ? '0.6rem' : '0.7rem',
+                                        fontWeight: '600'
+                                      }}>
+                                        📅 {daysAgo}d ago
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {/* Nutrition */}
                   {(() => {
                     const nutrition = calculateNutrition()
                     const netCalories = nutrition.calories - nutrition.caloriesBurned
                     return (
-                      <div style={{ 
+                      <div style={{
                         marginBottom: '1rem',
                         background: 'linear-gradient(135deg, #e8fff0 0%, #d0ffe0 100%)',
                         padding: isMobile ? '0.75rem' : '1rem',
@@ -676,9 +898,9 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   {dayData.checklists.filter(c => c.is_done).length > 0 && (
                     <div>
                       <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>✅ Completed</h4>
-                      <div style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
+                      <div style={{
+                        display: 'flex',
+                        flexDirection: 'column',
                         gap: '0.5rem',
                         maxHeight: isMobile ? '150px' : '200px',
                         overflowY: 'auto'
