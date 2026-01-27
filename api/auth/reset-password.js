@@ -19,10 +19,26 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
-    const { email } = req.body
+    // Parse body properly
+    let body = req.body
+    if (typeof body === 'string') {
+        try {
+            body = JSON.parse(body)
+        } catch (e) {
+            // ignore
+        }
+    }
+
+    const { email } = body
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' })
+    }
 
     try {
-        const { data, error } = await supabase.auth.resetPasswordForEmail(email)
+        const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: 'https://my-daily-dashboard-ten.vercel.app/update-password' // Or wherever you want them to land
+        })
 
         if (error) throw error
 
