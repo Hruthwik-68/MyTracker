@@ -6,26 +6,26 @@ import { NutritionStats } from './NutritionStats'
 import { StreakCalendar } from './StreakCalendar'
 import type { ChecklistTodo, TodoTag } from '../../types'  // After adding to types/index.ts
 import { TagBasedTodoModal } from './TagBasedTodoModal'
-const THEME = {
-  bgPrimary: '#0a0e27',
-  bgSecondary: '#1a1f3a',
-  bgTertiary: '#2d3358',
-  textPrimary: '#f8fafc',
-  textSecondary: '#94a3b8',
-  textMuted: '#64748b',
-  borderPrimary: '#334155',
-  borderAccent: '#475569',
-  success: '#10b981',
-  warning: '#f59e0b',
-  error: '#ef4444',
-  gradientPurple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-  gradientBlue: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-  gradientGold: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
-  gradientOrange: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-  gradientGreen: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-}
+// const THEME = {
+//   bgPrimary: '#0a0e27',
+//   bgSecondary: '#1a1f3a',
+//   bgTertiary: '#2d3358',
+//   textPrimary: '#f8fafc',
+//   textSecondary: '#94a3b8',
+//   textMuted: '#64748b',
+//   borderPrimary: '#334155',
+//   borderAccent: '#475569',
+//   success: '#10b981',
+//   warning: '#f59e0b',
+//   error: '#ef4444',
+//   gradientPurple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+//   gradientBlue: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+//   gradientGold: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
+//   gradientOrange: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+//   gradientGreen: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
+// }
 
-const DEFAULT_TAG_COLORS = ['#667eea', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
+// const DEFAULT_TAG_COLORS = ['#667eea', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
 export const DailyChecklist = () => {
   const { user } = useAuth()
   const [items, setItems] = useState<ChecklistItem[]>([])
