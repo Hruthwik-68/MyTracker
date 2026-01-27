@@ -15,6 +15,11 @@ export default async function handler(req, res) {
         return
     }
 
+    // Debugging logs
+    console.log('Received OTP request');
+    console.log('Body type:', typeof req.body);
+    console.log('Raw body:', req.body);
+
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' })
     }
@@ -30,29 +35,42 @@ export default async function handler(req, res) {
         }
     }
 
-    const { email, redirectUri } = body
+    const { email, redirectUri } = body || {}
 
     if (!email) {
+        console.error('Missing email in body')
         return res.status(400).json({ error: 'Email is required' })
     }
 
     try {
+        console.log('Attempting Supabase signInWithOtp for:', email)
+
+        // Explicitly nullify emailRedirectTo if it causes issues, or ensure it is valid
+        // For now, let's try WITHOUT it if it's failing, or log carefully
+        const options = {
+            shouldCreateUser: true
+        }
+
+        // Only add redirect if it exists and is valid
+        if (redirectUri && redirectUri.startsWith('http')) {
+            options.emailRedirectTo = redirectUri
+        }
+
         const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
             email,
-            options: {
-                shouldCreateUser: true,
-                emailRedirectTo: redirectUri || undefined
-            }
+            options
         })
 
         if (otpError) {
-            console.error('Supabase OTP Error:', otpError)
+            console.error('Supabase OTP Error details:', JSON.stringify(otpError, null, 2))
             throw otpError
         }
 
+        console.log('Supabase OTP Success:', otpData)
+
         return res.status(200).json(otpData)
     } catch (error) {
-        console.error('Handler Error:', error)
+        console.error('Handler Critical Error:', error)
         return res.status(400).json({ error: error.message || 'An error occurred' })
     }
 }
