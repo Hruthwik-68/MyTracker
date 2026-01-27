@@ -21,17 +21,28 @@ export default async function handler(req, res) {
 
     // Parse body properly
     let body = req.body
+    console.log('Login Request Body Type:', typeof body)
+    console.log('Login Request Body:', body)
+
     if (typeof body === 'string') {
         try {
             body = JSON.parse(body)
+            console.log('Parsed Body:', body)
         } catch (e) {
-            // ignore
+            console.error('JSON Parse Error:', e)
+            return res.status(400).json({ error: 'Invalid JSON body' })
         }
+    }
+
+    // Handle case where body might be empty object if parsing failed earlier or wasn't sent
+    if (!body) {
+        return res.status(400).json({ error: 'No request body sent' })
     }
 
     const { email, password } = body
 
     if (!email || !password) {
+        console.error('Missing fields. Email:', !!email, 'Password:', !!password)
         return res.status(400).json({ error: 'Email and password are required' })
     }
 
@@ -41,10 +52,13 @@ export default async function handler(req, res) {
             password
         })
 
-        if (error) throw error
+        if (error) {
+            console.error('Supabase Login Error:', error)
+            throw error
+        }
 
         return res.status(200).json(data)
     } catch (error) {
-        return res.status(400).json({ error: error.message })
+        return res.status(400).json({ error: error.message || 'Login failed' })
     }
 }
