@@ -5,7 +5,7 @@ import type { ChecklistItem, DailyChecklist as DailyChecklistType, Note } from '
 import { NutritionStats } from './NutritionStats'
 import { StreakCalendar } from './StreakCalendar'
 import type { ChecklistTodo, TodoTag } from '../../types'  // After adding to types/index.ts
-
+import { TagBasedTodoModal } from './TagBasedTodoModal'
 const THEME = {
   bgPrimary: '#0a0e27',
   bgSecondary: '#1a1f3a',
@@ -40,13 +40,6 @@ export const DailyChecklist = () => {
   const [viewingMacroItem, setViewingMacroItem] = useState<ChecklistItem | null>(null)
   const [todayNote, setTodayNote] = useState<Note | null>(null)
   const [noteContent, setNoteContent] = useState('')
-  const [checklistTodos, setChecklistTodos] = useState<ChecklistTodo[]>([])
-const [todoTags, setTodoTags] = useState<TodoTag[]>([])
-const [newTodoText, setNewTodoText] = useState('')
-const [selectedTags, setSelectedTags] = useState<string[]>([])
-const [showTagManager, setShowTagManager] = useState(false)
-const [newTagName, setNewTagName] = useState('')
-const [newTagColor, setNewTagColor] = useState(DEFAULT_TAG_COLORS[0])
 const [showTodosModal, setShowTodosModal] = useState(false)
   
   // Drag and Drop state
@@ -109,8 +102,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
     if (user) {  // ✅ ADD THIS CHECK
     loadChecklistData()
     loadTodayNote()
-    loadChecklistTodos()
-    loadTodoTags()
+    
   } 
   }, [user])
 
@@ -1171,21 +1163,21 @@ const getDaysAgo = (originalDate: string) => {
   </button>
   
   {/* ADD THIS NEW BUTTON */}
-  <button onClick={() => setShowTodosModal(true)} style={{
-    flex: 1,
-    minWidth: '100px',
-    padding: isMobile ? '0.6rem' : '0.75rem',
-    background: checklistTodos.some(t => !t.is_done) ? 'rgba(79,172,254,0.3)' : 'rgba(255,255,255,0.2)',
-    backdropFilter: 'blur(10px)',
-    color: 'white',
-    border: `2px solid ${checklistTodos.some(t => !t.is_done) ? 'rgba(79,172,254,0.5)' : 'rgba(255,255,255,0.3)'}`,
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700',
-    fontSize: isMobile ? '0.85rem' : '0.95rem'
-  }}>
-    ✅ Todos
-  </button>
+<button onClick={() => setShowTodosModal(true)} style={{
+  flex: 1,
+  minWidth: '100px',
+  padding: isMobile ? '0.6rem' : '0.75rem',
+  background: 'rgba(79,172,254,0.3)',  // ← SIMPLIFIED
+  backdropFilter: 'blur(10px)',
+  color: 'white',
+  border: '2px solid rgba(79,172,254,0.5)',
+  borderRadius: '8px',
+  cursor: 'pointer',
+  fontWeight: '700',
+  fontSize: isMobile ? '0.85rem' : '0.95rem'
+}}>
+  ✅ Todos
+</button>
   
   <button onClick={() => setShowStreaks(true)} style={{
     flex: 1,
@@ -2276,312 +2268,11 @@ const getDaysAgo = (originalDate: string) => {
           </div>
         </div>
       )}
-      {showTodosModal && (
-  <div style={{
-    position: 'fixed',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    background: 'rgba(0,0,0,0.7)',
-    backdropFilter: 'blur(5px)',
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-    padding: '1rem'
-  }}>
-    <div style={{
-      background: THEME.bgSecondary,
-      padding: isMobile ? '1.5rem' : '2rem',
-      borderRadius: '12px',
-      maxWidth: isMobile ? '100%' : '600px',
-      width: '100%',
-      maxHeight: '90vh',
-      overflow: 'auto',
-      border: `1px solid ${THEME.borderPrimary}`,
-      boxShadow: '0 20px 60px rgba(0,0,0,0.5)'
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-        <h2 style={{ margin: 0, fontSize: isMobile ? '1.3rem' : '1.5rem', color: THEME.textPrimary }}>✅ Daily Todos</h2>
-        <button onClick={() => setShowTodosModal(false)} style={{
-          background: THEME.bgTertiary,
-          border: 'none',
-          color: THEME.textPrimary,
-          fontSize: '1.5rem',
-          cursor: 'pointer',
-          width: '32px',
-          height: '32px',
-          borderRadius: '6px'
-        }}>×</button>
-      </div>
-
-      {/* Add Todo Section */}
-      <div style={{
-        background: THEME.gradientBlue,
-        padding: '1rem',
-        borderRadius: '8px',
-        marginBottom: '1rem'
-      }}>
-        <input
-          type="text"
-          value={newTodoText}
-          onChange={(e) => setNewTodoText(e.target.value)}
-          onKeyPress={(e) => e.key === 'Enter' && addChecklistTodo()}
-          placeholder="Add new todo..."
-          style={{
-            width: '100%',
-            padding: '0.75rem',
-            background: 'rgba(255,255,255,0.2)',
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderRadius: '8px',
-            color: 'white',
-            fontSize: '0.95rem',
-            marginBottom: '0.75rem'
-          }}
-        />
-
-        {/* Tag Selection */}
-        {todoTags.length > 0 && (
-          <div style={{ marginBottom: '0.75rem' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {todoTags.map(tag => (
-                <button
-                  key={tag.id}
-                  onClick={() => toggleTagSelection(tag.name)}
-                  style={{
-                    background: selectedTags.includes(tag.name) ? tag.color : 'rgba(255,255,255,0.2)',
-                    color: 'white',
-                    border: selectedTags.includes(tag.name) ? `2px solid white` : `2px solid rgba(255,255,255,0.3)`,
-                    padding: '0.4rem 0.8rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem',
-                    fontWeight: selectedTags.includes(tag.name) ? '700' : '500'
-                  }}
-                >
-                  {tag.name}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button onClick={addChecklistTodo} style={{
-            flex: 1,
-            padding: '0.75rem',
-            background: 'rgba(255,255,255,0.3)',
-            backdropFilter: 'blur(10px)',
-            color: 'white',
-            border: '2px solid rgba(255,255,255,0.5)',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '700',
-            fontSize: '0.95rem'
-          }}>
-            ➕ Add Todo
-          </button>
-          <button onClick={() => setShowTagManager(!showTagManager)} style={{
-            padding: '0.75rem',
-            background: 'rgba(255,255,255,0.2)',
-            color: 'white',
-            border: '2px solid rgba(255,255,255,0.3)',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontSize: '0.95rem'
-          }}>
-            🏷️
-          </button>
-        </div>
-      </div>
-
-      {/* Tag Manager */}
-      {showTagManager && (
-        <div style={{
-          background: THEME.bgTertiary,
-          padding: '1rem',
-          borderRadius: '8px',
-          marginBottom: '1rem',
-          border: `1px solid ${THEME.borderAccent}`
-        }}>
-          <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.1rem', color: THEME.textPrimary }}>🏷️ Manage Tags</h3>
-          
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <input
-              type="text"
-              value={newTagName}
-              onChange={(e) => setNewTagName(e.target.value)}
-              placeholder="Tag name"
-              style={{
-                flex: 1,
-                padding: '0.75rem',
-                background: THEME.bgSecondary,
-                border: `1px solid ${THEME.borderAccent}`,
-                borderRadius: '8px',
-                color: THEME.textPrimary,
-                fontSize: '0.9rem'
-              }}
-            />
-            <select
-              value={newTagColor}
-              onChange={(e) => setNewTagColor(e.target.value)}
-              style={{
-                padding: '0.75rem',
-                background: THEME.bgSecondary,
-                border: `1px solid ${THEME.borderAccent}`,
-                borderRadius: '8px',
-                color: THEME.textPrimary,
-                fontSize: '0.9rem'
-              }}
-            >
-              {DEFAULT_TAG_COLORS.map(color => (
-                <option key={color} value={color}>{color}</option>
-              ))}
-            </select>
-            <button onClick={createTag} style={{
-              padding: '0.75rem 1rem',
-              background: THEME.success,
-              color: 'white',
-              border: 'none',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              fontWeight: '700'
-            }}>
-              ➕
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-            {todoTags.map(tag => (
-              <div key={tag.id} style={{
-                background: tag.color,
-                color: 'white',
-                padding: '0.5rem 0.75rem',
-                borderRadius: '6px',
-                fontSize: '0.85rem',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem'
-              }}>
-                <span>{tag.name}</span>
-                <button onClick={() => deleteTag(tag.id, tag.name)} style={{
-                  background: 'rgba(0,0,0,0.3)',
-                  border: 'none',
-                  color: 'white',
-                  cursor: 'pointer',
-                  borderRadius: '4px',
-                  width: '20px',
-                  height: '20px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: '0.9rem'
-                }}>×</button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Todos List */}
-      <div style={{ maxHeight: '400px', overflow: 'auto' }}>
-        {checklistTodos.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '2rem', color: THEME.textSecondary }}>
-            <div style={{ fontSize: '3rem', marginBottom: '1rem' }}>📝</div>
-            <p>No todos yet. Add your first todo above!</p>
-          </div>
-        ) : (
-          checklistTodos.map(todo => {
-            const daysAgo = getDaysAgo(todo.original_date)
-            return (
-              <div key={todo.id} style={{
-                background: todo.is_done ? THEME.gradientGreen : THEME.bgTertiary,
-                border: `1px solid ${todo.is_done ? THEME.success : THEME.borderAccent}`,
-                borderRadius: '8px',
-                padding: '1rem',
-                marginBottom: '0.75rem'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                  <input
-                    type="checkbox"
-                    checked={todo.is_done}
-                    onChange={() => toggleChecklistTodo(todo)}
-                    style={{ 
-                      width: '20px', 
-                      height: '20px', 
-                      marginTop: '2px',
-                      accentColor: THEME.success,
-                      cursor: 'pointer'
-                    }}
-                  />
-                  <div style={{ flex: 1 }}>
-                    <div style={{
-                      color: THEME.textPrimary,
-                      textDecoration: todo.is_done ? 'line-through' : 'none',
-                      fontSize: '0.95rem',
-                      marginBottom: '0.5rem',
-                      wordBreak: 'break-word'
-                    }}>
-                      {todo.task}
-                    </div>
-                    
-                    {daysAgo > 0 && (
-                      <div style={{
-                        background: THEME.gradientOrange,
-                        color: 'white',
-                        padding: '0.25rem 0.5rem',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        display: 'inline-block',
-                        marginBottom: '0.5rem',
-                        fontWeight: '600'
-                      }}>
-                        📅 Forwarded from {daysAgo} day{daysAgo > 1 ? 's' : ''} ago
-                      </div>
-                    )}
-                    
-                    {todo.tags.length > 0 && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
-                        {todo.tags.map(tagName => {
-                          const tag = todoTags.find(t => t.name === tagName)
-                          return tag ? (
-                            <span key={tagName} style={{
-                              background: tag.color,
-                              color: 'white',
-                              padding: '0.25rem 0.5rem',
-                              borderRadius: '4px',
-                              fontSize: '0.75rem',
-                              fontWeight: '600'
-                            }}>
-                              {tagName}
-                            </span>
-                          ) : null
-                        })}
-                      </div>
-                    )}
-                  </div>
-                  <button onClick={() => deleteChecklistTodo(todo.id)} style={{
-                    background: THEME.error,
-                    color: 'white',
-                    border: 'none',
-                    padding: '0.4rem 0.6rem',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: '0.85rem'
-                  }}>
-                    🗑️
-                  </button>
-                </div>
-              </div>
-            )
-          })
-        )}
-      </div>
-    </div>
-  </div>
-)}
-
+     <TagBasedTodoModal 
+  isOpen={showTodosModal}
+  onClose={() => setShowTodosModal(false)}
+  isMobile={isMobile}
+/>
 
       <style>{`
         @keyframes spin {
