@@ -4,7 +4,6 @@ import { useAuth } from '../../hooks/useAuth'
 import type { ChecklistItem, DailyChecklist as DailyChecklistType, Note } from '../../types'
 import { NutritionStats } from './NutritionStats'
 import { StreakCalendar } from './StreakCalendar'
-import type { ChecklistTodo, TodoTag } from '../../types'  // After adding to types/index.ts
 import { TagBasedTodoModal } from './TagBasedTodoModal'
 // const THEME = {
 //   bgPrimary: '#0a0e27',
