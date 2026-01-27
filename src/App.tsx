@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { HNBAuth } from 'hnb-auth-ui'
-import 'hnb-auth-ui/dist/hnb-auth-ui.css'
+import './styles/hnb-auth-ui.css'
 import { PlansPage } from './pages/PlansPage'
 
 import { ChecklistPage } from './pages/ChecklistPage'
