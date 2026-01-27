@@ -19,17 +19,18 @@ export default async function handler(req, res) {
         return res.status(405).json({ error: 'Method not allowed' })
     }
 
-    // Parse body properly
+    // Parse body
     let body = req.body
     if (typeof body === 'string') {
         try {
             body = JSON.parse(body)
         } catch (e) {
+            console.error('JSON Parse Error:', e)
             return res.status(400).json({ error: 'Invalid JSON body' })
         }
     }
 
-    const { email } = body
+    const { email, redirectUri } = body
 
     if (!email) {
         return res.status(400).json({ error: 'Email is required' })
@@ -38,13 +39,20 @@ export default async function handler(req, res) {
     try {
         const { data: otpData, error: otpError } = await supabase.auth.signInWithOtp({
             email,
-            options: { shouldCreateUser: true }
+            options: {
+                shouldCreateUser: true,
+                emailRedirectTo: redirectUri || undefined
+            }
         })
 
-        if (otpError) throw otpError
+        if (otpError) {
+            console.error('Supabase OTP Error:', otpError)
+            throw otpError
+        }
 
         return res.status(200).json(otpData)
     } catch (error) {
-        return res.status(400).json({ error: error.message })
+        console.error('Handler Error:', error)
+        return res.status(400).json({ error: error.message || 'An error occurred' })
     }
 }
