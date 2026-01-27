@@ -4,27 +4,10 @@ import { useAuth } from '../../hooks/useAuth'
 import type { ChecklistItem, DailyChecklist as DailyChecklistType, Note } from '../../types'
 import { NutritionStats } from './NutritionStats'
 import { StreakCalendar } from './StreakCalendar'
+import { AddStatModal } from './AddStatModal'
 import { TagBasedTodoModal } from './TagBasedTodoModal'
-// const THEME = {
-//   bgPrimary: '#0a0e27',
-//   bgSecondary: '#1a1f3a',
-//   bgTertiary: '#2d3358',
-//   textPrimary: '#f8fafc',
-//   textSecondary: '#94a3b8',
-//   textMuted: '#64748b',
-//   borderPrimary: '#334155',
-//   borderAccent: '#475569',
-//   success: '#10b981',
-//   warning: '#f59e0b',
-//   error: '#ef4444',
-//   gradientPurple: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-//   gradientBlue: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-//   gradientGold: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)',
-//   gradientOrange: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-//   gradientGreen: 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-// }
+import type { StatDefinition, DailyStatValue } from '../../types'
 
-// const DEFAULT_TAG_COLORS = ['#667eea', '#f59e0b', '#10b981', '#ec4899', '#3b82f6', '#8b5cf6', '#ef4444', '#06b6d4', '#84cc16', '#f97316']
 export const DailyChecklist = () => {
   const { user } = useAuth()
   const [items, setItems] = useState<ChecklistItem[]>([])
@@ -33,25 +16,12 @@ export const DailyChecklist = () => {
   const [showStreaks, setShowStreaks] = useState(false)
   const [showAddItem, setShowAddItem] = useState(false)
   const [showEditItem, setShowEditItem] = useState(false)
-  const [showMacroModal, setShowMacroModal] = useState(false)
   const [showNotesModal, setShowNotesModal] = useState(false)
   const [editingItem, setEditingItem] = useState<ChecklistItem | null>(null)
-  const [viewingMacroItem, setViewingMacroItem] = useState<ChecklistItem | null>(null)
   const [todayNote, setTodayNote] = useState<Note | null>(null)
   const [noteContent, setNoteContent] = useState('')
-const [showTodosModal, setShowTodosModal] = useState(false)
-  
-  // Drag and Drop state
-  const [draggedItem, setDraggedItem] = useState<ChecklistItem | null>(null)
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
-  
-  // Collapsible sections state
-  const [sectionsExpanded, setSectionsExpanded] = useState({
-    routine: false,
-    supplements: false,
-    diet: false,
-    stats: false
-  })
+  const [showTodosModal, setShowTodosModal] = useState(false)
+  const [activeSection, setActiveSection] = useState<'OVERVIEW' | 'ROUTINE' | 'SUPPLEMENTS' | 'DIET' | 'STATS'>('OVERVIEW')
 
   const [newItem, setNewItem] = useState({
     name: '',
@@ -66,7 +36,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
     calories_burn: 0,
     is_exercise: false
   })
-  
+
   const [dailyStats, setDailyStats] = useState({
     energyLevel: 5,
     focusLevel: 5,
@@ -76,6 +46,11 @@ const [showTodosModal, setShowTodosModal] = useState(false)
     problemsSolved: 0,
     gymHours: 0
   })
+
+  // Custom Stats State
+  const [customStats, setCustomStats] = useState<StatDefinition[]>([])
+  const [customStatValues, setCustomStatValues] = useState<DailyStatValue[]>([])
+  const [showAddStat, setShowAddStat] = useState(false)
 
   // Mobile detection
   const [isMobile, setIsMobile] = useState(false)
@@ -90,19 +65,18 @@ const [showTodosModal, setShowTodosModal] = useState(false)
   }, [])
 
   const today = new Date()
-  const formattedDate = today.toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  const formattedDate = today.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
   })
 
   useEffect(() => {
-    if (user) {  // ✅ ADD THIS CHECK
-    loadChecklistData()
-    loadTodayNote()
-    
-  } 
+    if (user) {
+      loadChecklistData()
+      loadTodayNote()
+    }
   }, [user])
 
   const loadTodayNote = async () => {
@@ -125,226 +99,19 @@ const [showTodosModal, setShowTodosModal] = useState(false)
     }
   }
 
-  const deleteNote = async () => {
-    if (!user || !todayNote) return
-    
-    if (!confirm('Delete this note permanently?')) return
-    
-    try {
-      await supabase
-        .from('notes')
-        .delete()
-        .eq('id', todayNote.id)
-      
-      setTodayNote(null)
-      setNoteContent('')
-      setShowNotesModal(false)
-      alert('✅ Note deleted successfully!')
-    } catch (error) {
-      console.error('Error deleting note:', error)
-      alert('❌ Failed to delete note')
-    }
-  }
-// const loadChecklistTodos = async () => {
-//   if (!user) return
-//   try {
-//     const today = new Date().toISOString().split('T')[0]
-    
-//     const { data: todayTodos } = await supabase
-//       .from('checklist_todos')
-//       .select('*')
-//       .eq('user_id', user.id)
-//       .eq('date', today)
-//       .order('created_at', { ascending: true })
-
-//     const { data: incompleteTodos } = await supabase
-//       .from('checklist_todos')
-//       .select('*')
-//       .eq('user_id', user.id)
-//       .eq('is_done', false)
-//       .lt('date', today)
-//       .order('original_date', { ascending: true })
-
-//     if (incompleteTodos && incompleteTodos.length > 0) {
-//       const carriedForwardTodos = incompleteTodos.map(todo => ({
-//         user_id: user.id,
-//         date: today,
-//         task: todo.task,
-//         is_done: false,
-//         tags: todo.tags,
-//         original_date: todo.original_date
-//       }))
-      
-//       const { data: newTodos } = await supabase
-//         .from('checklist_todos')
-//         .insert(carriedForwardTodos)
-//         .select()
-      
-//       setChecklistTodos([...(todayTodos || []), ...(newTodos || [])])
-//     } else {
-//       setChecklistTodos(todayTodos || [])
-//     }
-//   } catch (error) {
-//     console.error('Error loading todos:', error)
-//   }
-// }
-
-// const loadTodoTags = async () => {
-//   if (!user) return
-//   try {
-//     const { data } = await supabase
-//       .from('todo_tags')
-//       .select('*')
-//       .eq('user_id', user.id)
-//       .order('name')
-
-//     if (data) setTodoTags(data)
-//   } catch (error) {
-//     console.error('Error loading tags:', error)
-//   }
-// }
-
-// const addChecklistTodo = async () => {
-//   if (!user || !newTodoText.trim()) return
-  
-//   try {
-//     const today = new Date().toISOString().split('T')[0]
-//     const { data } = await supabase
-//       .from('checklist_todos')
-//       .insert([{
-//         user_id: user.id,
-//         date: today,
-//         task: newTodoText,
-//         is_done: false,
-//         tags: selectedTags,
-//         original_date: today
-//       }])
-//       .select()
-//       .single()
-
-//     if (data) {
-//       setChecklistTodos([...checklistTodos, data])
-//       setNewTodoText('')
-//       setSelectedTags([])
-//     }
-//   } catch (error) {
-//     console.error('Error adding todo:', error)
-//     alert('❌ Failed to add todo')
-//   }
-// }
-
-// const toggleChecklistTodo = async (todo: ChecklistTodo) => {
-//   try {
-//     const { data } = await supabase
-//       .from('checklist_todos')
-//       .update({ is_done: !todo.is_done })
-//       .eq('id', todo.id)
-//       .select()
-//       .single()
-
-//     if (data) {
-//       setChecklistTodos(checklistTodos.map(t => t.id === data.id ? data : t))
-//     }
-//   } catch (error) {
-//     console.error('Error toggling todo:', error)
-//   }
-// }
-
-// const deleteChecklistTodo = async (todoId: string) => {
-//   if (!confirm('Delete this todo?')) return
-  
-//   try {
-//     await supabase.from('checklist_todos').delete().eq('id', todoId)
-//     setChecklistTodos(checklistTodos.filter(t => t.id !== todoId))
-//   } catch (error) {
-//     console.error('Error deleting todo:', error)
-//   }
-// }
-
-// const createTag = async () => {
-//   if (!user || !newTagName.trim()) return
-  
-//   try {
-//     const { data } = await supabase
-//       .from('todo_tags')
-//       .insert([{
-//         user_id: user.id,
-//         name: newTagName.trim(),
-//         color: newTagColor
-//       }])
-//       .select()
-//       .single()
-
-//     if (data) {
-//       setTodoTags([...todoTags, data])
-//       setNewTagName('')
-//       setNewTagColor(DEFAULT_TAG_COLORS[0])
-//       alert('✅ Tag created!')
-//     }
-//   } catch (error: any) {
-//     if (error.code === '23505') {
-//       alert('❌ Tag name already exists')
-//     } else {
-//       console.error('Error creating tag:', error)
-//       alert('❌ Failed to create tag')
-//     }
-//   }
-// }
-
-// const deleteTag = async (tagId: string, tagName: string) => {
-//   if (!confirm(`Delete tag "${tagName}"?`)) return
-  
-//   try {
-//     await supabase.from('todo_tags').delete().eq('id', tagId)
-    
-//     const todosWithTag = checklistTodos.filter(t => t.tags.includes(tagName))
-//     for (const todo of todosWithTag) {
-//       await supabase
-//         .from('checklist_todos')
-//         .update({ tags: todo.tags.filter(t => t !== tagName) })
-//         .eq('id', todo.id)
-//     }
-    
-//     setTodoTags(todoTags.filter(t => t.id !== tagId))
-//     await loadChecklistTodos()
-//     alert('✅ Tag deleted')
-//   } catch (error) {
-//     console.error('Error deleting tag:', error)
-//     alert('❌ Failed to delete tag')
-//   }
-// }
-
-// const toggleTagSelection = (tagName: string) => {
-//   if (selectedTags.includes(tagName)) {
-//     setSelectedTags(selectedTags.filter(t => t !== tagName))
-//   } else {
-//     setSelectedTags([...selectedTags, tagName])
-//   }
-// }
-
-// const getDaysAgo = (originalDate: string) => {
-//   const today = new Date().toISOString().split('T')[0]
-//   if (originalDate === today) return 0
-  
-//   const orig = new Date(originalDate)
-//   const todayDate = new Date(today)
-//   const diffTime = Math.abs(todayDate.getTime() - orig.getTime())
-//   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-//   return diffDays
-// }
   const saveNote = async () => {
     if (!user) return
-    
+
     try {
       const today = new Date().toISOString().split('T')[0]
-      
+
       if (!noteContent.trim()) {
         if (todayNote) {
           await supabase
             .from('notes')
             .delete()
             .eq('id', todayNote.id)
-          
+
           setTodayNote(null)
           alert('✅ Note deleted successfully!')
         } else {
@@ -353,7 +120,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
         setShowNotesModal(false)
         return
       }
-      
+
       if (todayNote) {
         const { data } = await supabase
           .from('notes')
@@ -361,7 +128,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
           .eq('id', todayNote.id)
           .select()
           .single()
-        
+
         if (data) setTodayNote(data)
         alert('✅ Note updated successfully!')
       } else {
@@ -374,17 +141,57 @@ const [showTodosModal, setShowTodosModal] = useState(false)
           }])
           .select()
           .single()
-        
+
         if (data) setTodayNote(data)
         alert('✅ Note saved successfully!')
       }
-      
+
       setShowNotesModal(false)
     } catch (error) {
       console.error('Error saving note:', error)
       alert('❌ Failed to save note')
     }
   }
+
+  // Auto-seed Core Stats if they don't exist
+  useEffect(() => {
+    const seedStats = async () => {
+      if (!user || loading) return
+
+      const CORE_STATS = [
+        { label: 'DSA', emoji: '💠', color: '#10b981' },
+        { label: 'LLD', emoji: '🏗️', color: '#d97706' },
+        { label: 'Problems', emoji: '💎', color: '#3b82f6' },
+        { label: 'Gym', emoji: '💪', color: '#8b5cf6' }
+      ]
+
+      try {
+        const { data: existing } = await supabase
+          .from('stat_definitions')
+          .select('label')
+          .eq('user_id', user.id)
+
+        const existingLabels = existing?.map(e => e.label) || []
+        const toAdd = CORE_STATS.filter(s => !existingLabels.includes(s.label))
+
+        if (toAdd.length > 0) {
+          await supabase.from('stat_definitions').insert(
+            toAdd.map(s => ({
+              user_id: user.id,
+              label: s.label,
+              emoji: s.emoji,
+              color: s.color,
+              type: 'number'
+            }))
+          )
+          loadChecklistData() // Reload to fetch new stats
+        }
+      } catch (err) {
+        console.error('Error seeding stats:', err)
+      }
+    }
+    seedStats()
+  }, [user, loading]) // Run once when user is loaded
 
   const loadChecklistData = async () => {
     if (!user) return
@@ -407,9 +214,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
       if (itemsData) setItems(itemsData)
       if (logsData) setLogs(logsData)
 
-      if (!itemsData || itemsData.length === 0) {
-        await createDefaultItems()
-      }
+      // Default items logic removed to prevent infinite loop and enforce empty state for new users
 
       const { data: statsData } = await supabase
         .from('daily_stats')
@@ -417,6 +222,23 @@ const [showTodosModal, setShowTodosModal] = useState(false)
         .eq('user_id', user.id)
         .eq('date', today)
         .single()
+
+      // Load Custom Stats Definitions
+      const { data: customDefs } = await supabase
+        .from('stat_definitions')
+        .select('*')
+        .eq('user_id', user.id)
+
+      if (customDefs) setCustomStats(customDefs)
+
+      // Load Custom Stats Values
+      const { data: customVals } = await supabase
+        .from('daily_stat_values')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('date', today)
+
+      if (customVals) setCustomStatValues(customVals)
 
       if (statsData) {
         setDailyStats({
@@ -436,103 +258,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
     }
   }
 
-  const createDefaultItems = async () => {
-    if (!user) return
 
-    const { data: existing } = await supabase
-      .from('checklist_items')
-      .select('id')
-      .eq('user_id', user.id)
-      .limit(1)
-
-    if (existing && existing.length > 0) {
-      return
-    }
-
-    const defaultItems = [
-      { category: 'ROUTINE', name: '☀️ Wake up', order_index: 1, metadata: null },
-      { category: 'ROUTINE', name: '🪥 Brush', order_index: 2, metadata: null },
-      { category: 'ROUTINE', name: '💦 Splash water', order_index: 3, metadata: null },
-      { category: 'ROUTINE', name: '📚 Revise while brushing', order_index: 4, metadata: null },
-      { category: 'ROUTINE', name: '🏃 Treadmill (1 hr @ 8km/h)', order_index: 5, metadata: { calories_burn: 850 } },
-      { category: 'ROUTINE', name: '💪 Gym - Weight Training (1 hr)', order_index: 6, metadata: { calories_burn: 400 } },
-      { category: 'ROUTINE', name: '🧠 Study DSA/CP', order_index: 7, metadata: null },
-      { category: 'ROUTINE', name: '💻 Work Block (9 AM - 6 PM)', order_index: 8, metadata: null },
-      { category: 'ROUTINE', name: '📖 LLD Study (0.5-1 hr)', order_index: 9, metadata: null },
-      { category: 'ROUTINE', name: '🛌 Sleep 8 hours', order_index: 10, metadata: null },
-      
-      { category: 'SUPPLEMENT', name: '🔥 Hot water (morning)', order_index: 11, metadata: null },
-      { category: 'SUPPLEMENT', name: '💊 Glutathione (alternate days)', order_index: 12, metadata: null },
-      { category: 'SUPPLEMENT', name: '🍊 Vitamin C (alternate days)', order_index: 13, metadata: null },
-      { category: 'SUPPLEMENT', name: '✨ Skin care tablet (morning)', order_index: 14, metadata: null },
-      { category: 'SUPPLEMENT', name: '🌙 Skin care tablet (night)', order_index: 15, metadata: null },
-      { category: 'SUPPLEMENT', name: '⚡ Creatine 3-5g', order_index: 16, metadata: null },
-      { category: 'SUPPLEMENT', name: '🍵 Green tea (evening)', order_index: 17, metadata: null },
-      { category: 'SUPPLEMENT', name: '💊 Multivitamin (evening)', order_index: 18, metadata: null },
-      { category: 'SUPPLEMENT', name: '🌰 Flaxseed 1 spoon', order_index: 19, metadata: null },
-      
-      { 
-        category: 'DIET', 
-        name: '💧 Water (litres)', 
-        order_index: 20,
-        metadata: { unit: 'litre', calories: 0, protein: 0, carbs: 0, fiber: 0, fats: 0 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🍗 Chicken Breast (grams)', 
-        order_index: 21,
-        metadata: { unit: 'gram', calories: 1.2, protein: 0.225, carbs: 0.026, fiber: 0, fats: 0.002 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🥚 Eggs (units)', 
-        order_index: 22,
-        metadata: { unit: 'unit', calories: 68.25, protein: 4.675, carbs: 2.3, fiber: 0, fats: 2 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🌱 Sprouts (grams)', 
-        order_index: 23,
-        metadata: { unit: 'gram', calories: 0.3, protein: 0.03, carbs: 0.002, fiber: 0.018, fats: 0.06 }
-      },
-      { 
-        category: 'DIET', 
-        name: '💪 Whey Protein (scoops)', 
-        order_index: 24,
-        metadata: { unit: 'scoop', calories: 135, protein: 22, carbs: 2.1, fiber: 0.5, fats: 7 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🥛 Curd (grams)', 
-        order_index: 25,
-        metadata: { unit: 'gram', calories: 0.6, protein: 0.031, carbs: 0.04, fiber: 0, fats: 0.03 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🍚 Boiled Rice (grams)', 
-        order_index: 26,
-        metadata: { unit: 'gram', calories: 1.08, protein: 0.018, carbs: 0.24, fiber: 0.01, fats: 0.002 }
-      },
-      { 
-        category: 'DIET', 
-        name: '🫘 Soya Chunks (grams)', 
-        order_index: 27,
-        metadata: { unit: 'gram', calories: 3.45, protein: 0.518, carbs: 0.009, fiber: 0.127, fats: 0.327 }
-      },
-    ]
-
-    const itemsToInsert = defaultItems.map(item => ({
-      user_id: user.id,
-      category: item.category,
-      name: item.name,
-      is_persistent: true,
-      order_index: item.order_index,
-      metadata: item.metadata
-    }))
-
-    await supabase.from('checklist_items').insert(itemsToInsert)
-    await loadChecklistData()
-  }
 
   const toggleChecklistItem = async (item: ChecklistItem) => {
     if (!user) return
@@ -610,7 +336,7 @@ const [showTodosModal, setShowTodosModal] = useState(false)
 
     try {
       let metadata = null
-      
+
       if (newItem.category === 'DIET') {
         metadata = {
           unit: newItem.unit,
@@ -689,11 +415,6 @@ const [showTodosModal, setShowTodosModal] = useState(false)
   const openEditModal = (item: ChecklistItem) => {
     setEditingItem(item)
     setShowEditItem(true)
-  }
-
-  const openMacroModal = (item: ChecklistItem) => {
-    setViewingMacroItem(item)
-    setShowMacroModal(true)
   }
 
   const updateItem = async () => {
@@ -789,1503 +510,760 @@ const [showTodosModal, setShowTodosModal] = useState(false)
     }
   }
 
-  const getLogForItem = (itemId: string) => {
-    return logs.find(l => l.checklist_item_id === itemId)
-  }
+  const updateCustomStat = async (statId: string, value: string) => {
+    if (!user) return
+    const today = new Date().toISOString().split('T')[0]
+    const numValue = parseFloat(value) || 0
 
-  const toggleSection = (section: keyof typeof sectionsExpanded) => {
-    setSectionsExpanded(prev => ({ ...prev, [section]: !prev[section] }))
-  }
+    const existing = customStatValues.find(v => v.stat_def_id === statId)
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, item: ChecklistItem) => {
-    setDraggedItem(item)
-    e.dataTransfer.effectAllowed = 'move'
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '0.5'
+    // Optimistic update
+    if (existing) {
+      setCustomStatValues(prev => prev.map(v => v.stat_def_id === statId ? { ...v, value: numValue } : v))
+    } else {
+      const newVal: any = { stat_def_id: statId, value: numValue, date: today, user_id: user.id }
+      setCustomStatValues(prev => [...prev, newVal])
     }
-  }
-
-  const handleDragEnd = (e: React.DragEvent) => {
-    if (e.currentTarget instanceof HTMLElement) {
-      e.currentTarget.style.opacity = '1'
-    }
-    setDraggedItem(null)
-    setDragOverIndex(null)
-  }
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault()
-    e.dataTransfer.dropEffect = 'move'
-    setDragOverIndex(index)
-  }
-
-  const handleDrop = async (e: React.DragEvent, targetItem: ChecklistItem, targetIndex: number) => {
-    e.preventDefault()
-    
-    if (!draggedItem || !user) return
-    if (draggedItem.id === targetItem.id) return
-    if (draggedItem.category !== targetItem.category) return
-
-    const categoryItems = items.filter(i => i.category === draggedItem.category)
-    const draggedIndex = categoryItems.findIndex(i => i.id === draggedItem.id)
-    
-    if (draggedIndex === -1) return
-
-    const newCategoryItems = [...categoryItems]
-    newCategoryItems.splice(draggedIndex, 1)
-    newCategoryItems.splice(targetIndex, 0, draggedItem)
-
-    const updates = newCategoryItems.map((item, idx) => ({
-      id: item.id,
-      order_index: categoryItems[0].order_index + idx
-    }))
 
     try {
-      for (const update of updates) {
+      if (existing) {
         await supabase
-          .from('checklist_items')
-          .update({ order_index: update.order_index })
-          .eq('id', update.id)
-      }
-      await loadChecklistData()
-    } catch (error) {
-      console.error('Error reordering items:', error)
-      alert('❌ Failed to reorder items')
-    }
+          .from('daily_stat_values')
+          .update({ value: numValue })
+          .eq('id', existing.id)
+      } else {
+        const { data } = await supabase
+          .from('daily_stat_values')
+          .insert([{
+            user_id: user.id,
+            date: today,
+            stat_def_id: statId,
+            value: numValue
+          }])
+          .select()
+          .single()
 
-    setDraggedItem(null)
-    setDragOverIndex(null)
+        if (data) {
+          setCustomStatValues(prev => prev.map(v => v.stat_def_id === statId ? data : v))
+        }
+      }
+    } catch (error) {
+      console.error('Error updating custom stat:', error)
+    }
   }
 
-  const renderChecklistItem = (item: ChecklistItem, index: number) => {
-    const log = getLogForItem(item.id)
-    const metadata = item.metadata as any
-    const hasCalorieBurn = metadata?.calories_burn !== undefined && metadata?.calories_burn > 0
-    const isDragging = draggedItem?.id === item.id
-    const isDropTarget = dragOverIndex === index
+  const deleteCustomStat = async (statId: string) => {
+    if (!window.confirm('Are you sure you want to delete this stat? All history for this stat will be lost.')) return
 
-    if (item.category === 'DIET') {
-      return (
-        <div 
-          key={item.id} 
-          draggable
-          onDragStart={(e) => handleDragStart(e, item)}
-          onDragEnd={handleDragEnd}
-          onDragOver={(e) => handleDragOver(e, index)}
-          onDrop={(e) => handleDrop(e, item, index)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.75rem',
-            background: isDropTarget ? '#f0f7ff' : 'white',
-            border: isDropTarget ? '2px dashed #667eea' : '2px solid #e0e0e0',
-            borderRadius: '12px',
-            marginBottom: '0.75rem',
-            transition: 'all 0.3s ease',
-            boxShadow: isDragging ? '0 8px 16px rgba(0,0,0,0.2)' : '0 2px 8px rgba(0,0,0,0.05)',
-            opacity: isDragging ? 0.5 : 1,
-            transform: isDragging ? 'scale(1.05)' : 'scale(1)',
-            cursor: 'move'
-          }}
-        >
-          <div style={{
-            cursor: 'grab',
-            color: '#999',
-            padding: '0.25rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px',
-            touchAction: 'none'
-          }}>
-            <span style={{ height: '3px', width: '16px', background: '#999', borderRadius: '2px' }}></span>
-            <span style={{ height: '3px', width: '16px', background: '#999', borderRadius: '2px' }}></span>
-            <span style={{ height: '3px', width: '16px', background: '#999', borderRadius: '2px' }}></span>
-          </div>
+    // Optimistic remove
+    setCustomStats(prev => prev.filter(s => s.id !== statId))
+    setCustomStatValues(prev => prev.filter(v => v.stat_def_id !== statId))
 
-          <span style={{ flex: 1, fontWeight: '500', fontSize: '0.9rem', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {item.name}
-          </span>
-          
-          <input
-            type="number"
-            step={metadata?.unit === 'gram' ? '1' : metadata?.unit === 'unit' ? '1' : '0.5'}
-            min="0"
-            value={log?.value || ''}
-            onChange={(e) => updateDietValue(item, e.target.value)}
-            placeholder="0"
-            style={{
-              padding: '0.5rem',
-              border: '2px solid #ddd',
-              borderRadius: '8px',
-              width: '60px',
-              fontSize: '0.9rem',
-              textAlign: 'center',
-              fontWeight: '600'
-            }}
-          />
-          
-          <div style={{ display: 'flex', gap: '0.25rem' }}>
-            <button
-              onClick={() => openMacroModal(item)}
-              title="View"
-              style={{
-                background: '#4caf50',
-                color: 'white',
-                border: 'none',
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.85rem'
-              }}
-            >
-              📊
-            </button>
-            <button
-              onClick={() => deleteItem(item.id)}
-              title="Delete"
-              style={{
-                background: '#ff6b6b',
-                color: 'white',
-                border: 'none',
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.85rem'
-              }}
-            >
-              🗑️
-            </button>
-          </div>
-        </div>
-      )
+    try {
+      await supabase.from('stat_definitions').delete().eq('id', statId)
+    } catch (err) {
+      console.error('Error deleting stat:', err)
+      alert('Failed to delete stat')
     }
+  }
 
-    return (
-      <div 
-        key={item.id}
-        draggable
-        onDragStart={(e) => handleDragStart(e, item)}
-        onDragEnd={handleDragEnd}
-        onDragOver={(e) => handleDragOver(e, index)}
-        onDrop={(e) => handleDrop(e, item, index)}
-        onClick={(e) => {
-          if (!(e.target as HTMLElement).closest('button')) {
-            toggleChecklistItem(item)
-          }
-        }}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          padding: '0.75rem',
-          background: log?.is_done 
-            ? 'linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%)' 
-            : isDropTarget 
-              ? '#f0f7ff' 
-              : 'white',
-          border: log?.is_done 
-            ? '2px solid #4caf50' 
-            : isDropTarget 
-              ? '2px dashed #667eea' 
-              : '2px solid #e0e0e0',
-          borderRadius: '12px',
-          marginBottom: '0.75rem',
-          transition: 'all 0.3s ease',
-          boxShadow: isDragging 
-            ? '0 8px 16px rgba(0,0,0,0.2)' 
-            : log?.is_done 
-              ? '0 4px 12px rgba(76,175,80,0.2)' 
-              : '0 2px 8px rgba(0,0,0,0.05)',
-          opacity: isDragging ? 0.5 : 1,
-          transform: isDragging ? 'scale(1.05)' : 'scale(1)',
-          cursor: 'pointer'
-        }}
-      >
-        <div 
-          style={{
-            cursor: 'grab',
-            color: '#999',
-            padding: '0.25rem',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '2px',
-            touchAction: 'none'
-          }}
-        >
-          <span style={{ height: '3px', width: '16px', background: '#999', borderRadius: '2px' }}></span>
-          <span style={{ height: '3px', width: '16px', background: '#999', borderRadius: '2px' }}></span>
-          <span style={{ height: '3px', width: '16px', background: '#999', borderRadius: '2px' }}></span>
-        </div>
+  const getCompletedCount = () => {
+    const total = items.filter(i =>
+      (activeSection === 'OVERVIEW' || i.category === activeSection)
+    ).length
 
-        <input
-          type="checkbox"
-          checked={log?.is_done || false}
-          onChange={(e) => e.stopPropagation()}
-          style={{ 
-            width: '20px', 
-            height: '20px',
-            accentColor: '#4caf50',
-            pointerEvents: 'none',
-            flexShrink: 0
-          }}
-        />
-        
-        <span style={{
-          flex: 1,
-          textDecoration: log?.is_done ? 'line-through' : 'none',
-          color: log?.is_done ? '#666' : '#333',
-          fontWeight: '500',
-          fontSize: '0.9rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-          flexWrap: 'wrap',
-          minWidth: 0
-        }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{item.name}</span>
-          {hasCalorieBurn && (
-            <span style={{
-              padding: '0.25rem 0.5rem',
-              background: 'linear-gradient(135deg, #ff6b6b 0%, #ff5252 100%)',
-              color: 'white',
-              borderRadius: '6px',
-              fontSize: '0.7rem',
-              fontWeight: '700',
-              whiteSpace: 'nowrap'
-            }}>
-              🔥 {metadata.calories_burn}
-            </span>
-          )}
-        </span>
-        
-        <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }} onClick={(e) => e.stopPropagation()}>
-          {hasCalorieBurn && (
-            <button
-              onClick={() => openEditModal(item)}
-              title="Edit"
-              style={{
-                background: '#ff9800',
-                color: 'white',
-                border: 'none',
-                padding: '0.4rem 0.6rem',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: '0.85rem'
-              }}
-            >
-              ✏️
-            </button>
-          )}
-          
-          <button
-            onClick={() => deleteItem(item.id)}
-            title="Delete"
-            style={{
-              background: '#ff6b6b',
-              color: 'white',
-              border: 'none',
-              padding: '0.4rem 0.6rem',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '0.85rem'
-            }}
-          >
-            🗑️
-          </button>
-        </div>
-      </div>
-    )
+    // For specific sections, filter items. For Overview, include everything or maybe just routine checklist? 
+    // Let's count everything for Overview.
+
+    const completed = items.filter(i => {
+      // Filter by section if not Overview
+      if (activeSection !== 'OVERVIEW' && i.category !== activeSection) return false
+
+      // Check if done
+      return logs.some(l => l.checklist_item_id === i.id && l.is_done)
+    }).length
+
+    return { completed, total }
+  }
+
+  // Dashboard Theming
+  const THEME = {
+    bg: '#09090b', // Rich Black
+    cardBg: '#18181b', // Dark Zinc
+    activeBg: '#27272a', // Zinc 800
+    border: '#27272a',
+    accent: '#f97316', // Orange
+    text: '#f4f4f5',
+    textMuted: '#a1a1aa'
   }
 
   if (loading) return (
-    <div style={{ 
-      display: 'flex', 
-      justifyContent: 'center', 
-      alignItems: 'center', 
+    <div style={{
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       minHeight: '100vh',
       flexDirection: 'column',
       gap: '1rem',
-      padding: '2rem'
+      padding: '2rem',
+      background: THEME.bg,
+      color: THEME.accent
     }}>
       <div style={{
         width: '60px',
         height: '60px',
-        border: '6px solid rgba(102, 126, 234, 0.2)',
-        borderTop: '6px solid #667eea',
+        border: `6px solid ${THEME.activeBg}`,
+        borderTop: `6px solid ${THEME.accent}`,
         borderRadius: '50%',
         animation: 'spin 1s linear infinite'
       }}></div>
-      <p style={{ color: '#667eea', fontSize: '1.1rem', fontWeight: '600', textAlign: 'center' }}>Loading...</p>
+      <p style={{ fontSize: '1.1rem', fontWeight: '600', textAlign: 'center' }}>Loading...</p>
+      <style>{`@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }`}</style>
     </div>
   )
 
-  const routineItems = items.filter(t => t.category === 'ROUTINE')
-  const supplementItems = items.filter(t => t.category === 'SUPPLEMENT')
-  const dietItems = items.filter(t => t.category === 'DIET')
-
   return (
-    <div style={{ 
-      maxWidth: '100%', 
-      margin: '0 auto',
-      padding: isMobile ? '0.5rem' : '1rem',
-      minHeight: '100vh',
-      background: '#f5f7fa'
+    <div style={{
+      display: 'flex',
+      minHeight: 'calc(100vh - 64px)', // Adjust for navbar height
+      background: THEME.bg,
+      color: THEME.text,
+      fontFamily: 'Inter, system-ui, sans-serif'
     }}>
-      <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        padding: isMobile ? '1rem' : '1.5rem',
-        borderRadius: '12px',
-        marginBottom: '1rem',
-        boxShadow: '0 4px 12px rgba(102,126,234,0.3)',
-        color: 'white'
-      }}>
-        <h1 style={{ margin: 0, fontSize: isMobile ? '1.3rem' : '1.8rem', marginBottom: '0.5rem' }}>✅ Daily Checklist</h1>
-        <p style={{ margin: 0, fontSize: isMobile ? '0.8rem' : '0.95rem', opacity: 0.9 }}>📅 {formattedDate}</p>
-        
-       <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-  <button onClick={() => setShowNotesModal(true)} style={{
-    flex: 1,
-    minWidth: '100px',
-    padding: isMobile ? '0.6rem' : '0.75rem',
-    background: todayNote ? 'rgba(255,215,0,0.3)' : 'rgba(255,255,255,0.2)',
-    backdropFilter: 'blur(10px)',
-    color: 'white',
-    border: `2px solid ${todayNote ? 'rgba(255,215,0,0.5)' : 'rgba(255,255,255,0.3)'}`,
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700',
-    fontSize: isMobile ? '0.85rem' : '0.95rem'
-  }}>
-    📝 Notes
-  </button>
-  
-  {/* ADD THIS NEW BUTTON */}
-<button onClick={() => setShowTodosModal(true)} style={{
-  flex: 1,
-  minWidth: '100px',
-  padding: isMobile ? '0.6rem' : '0.75rem',
-  background: 'rgba(79,172,254,0.3)',  // ← SIMPLIFIED
-  backdropFilter: 'blur(10px)',
-  color: 'white',
-  border: '2px solid rgba(79,172,254,0.5)',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  fontWeight: '700',
-  fontSize: isMobile ? '0.85rem' : '0.95rem'
-}}>
-  ✅ Todos
-</button>
-  
-  <button onClick={() => setShowStreaks(true)} style={{
-    flex: 1,
-    minWidth: '100px',
-    padding: isMobile ? '0.6rem' : '0.75rem',
-    background: 'rgba(255,255,255,0.2)',
-    backdropFilter: 'blur(10px)',
-    color: 'white',
-    border: '2px solid rgba(255,255,255,0.3)',
-    borderRadius: '8px',
-    cursor: 'pointer',
-    fontWeight: '700',
-    fontSize: isMobile ? '0.85rem' : '0.95rem'
-  }}>
-    🔥 Streaks
-  </button>
-</div>
-      </div>
-
-      {/* Stats Section */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        marginBottom: '1rem',
-        overflow: 'hidden'
-      }}>
-        <button
-          onClick={() => toggleSection('stats')}
-          style={{
-            width: '100%',
-            padding: isMobile ? '0.75rem' : '1rem',
-            background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: isMobile ? '1rem' : '1.2rem',
-            fontWeight: '700',
-            color: '#667eea'
-          }}
-        >
-          <span>📊 Stats</span>
-          <span style={{ 
-            transition: 'transform 0.3s ease',
-            transform: sectionsExpanded.stats ? 'rotate(180deg)' : 'rotate(0deg)'
-          }}>
-            ▼
-          </span>
-        </button>
-        
-        {sectionsExpanded.stats && (
-          <div style={{ padding: isMobile ? '0.75rem' : '1rem' }}>
-            {/* Stats Input Grid */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(auto-fit, minmax(150px, 1fr))',
-              gap: isMobile ? '0.5rem' : '0.75rem',
-              marginBottom: '1rem'
-            }}>
-              {/* DSA Hours */}
-              <div style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-                padding: isMobile ? '0.75rem' : '1rem',
-                borderRadius: '8px',
-                color: 'white'
-              }}>
-                <div style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', marginBottom: '0.25rem' }}>🧠</div>
-                <div style={{ fontSize: isMobile ? '0.7rem' : '0.8rem', opacity: 0.9, marginBottom: '0.25rem' }}>DSA Hours</div>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={dailyStats.dsaHours || ''}
-                  onChange={(e) => setDailyStats({...dailyStats, dsaHours: parseFloat(e.target.value) || 0})}
-                  placeholder="0"
-                  style={{
-                    fontSize: isMobile ? '1rem' : '1.2rem',
-                    fontWeight: 'bold',
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '6px',
-                    padding: '0.4rem',
-                    width: '100%',
-                    color: 'white',
-                    textAlign: 'center'
-                  }}
-                />
-              </div>
-
-              {/* LLD Hours */}
-              <div style={{
-                background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
-                padding: isMobile ? '0.75rem' : '1rem',
-                borderRadius: '8px',
-                color: 'white'
-              }}>
-                <div style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', marginBottom: '0.25rem' }}>📐</div>
-                <div style={{ fontSize: isMobile ? '0.7rem' : '0.8rem', opacity: 0.9, marginBottom: '0.25rem' }}>LLD Hours</div>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={dailyStats.lldHours || ''}
-                  onChange={(e) => setDailyStats({...dailyStats, lldHours: parseFloat(e.target.value) || 0})}
-                  placeholder="0"
-                  style={{
-                    fontSize: isMobile ? '1rem' : '1.2rem',
-                    fontWeight: 'bold',
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '6px',
-                    padding: '0.4rem',
-                    width: '100%',
-                    color: 'white',
-                    textAlign: 'center'
-                  }}
-                />
-              </div>
-
-              {/* Problems Solved */}
-              <div style={{
-                background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
-                padding: isMobile ? '0.75rem' : '1rem',
-                borderRadius: '8px',
-                color: 'white'
-              }}>
-                <div style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', marginBottom: '0.25rem' }}>✅</div>
-                <div style={{ fontSize: isMobile ? '0.7rem' : '0.8rem', opacity: 0.9, marginBottom: '0.25rem' }}>Problems</div>
-                <input
-                  type="number"
-                  min="0"
-                  value={dailyStats.problemsSolved || ''}
-                  onChange={(e) => setDailyStats({...dailyStats, problemsSolved: parseInt(e.target.value) || 0})}
-                  placeholder="0"
-                  style={{
-                    fontSize: isMobile ? '1rem' : '1.2rem',
-                    fontWeight: 'bold',
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '6px',
-                    padding: '0.4rem',
-                    width: '100%',
-                    color: 'white',
-                    textAlign: 'center'
-                  }}
-                />
-              </div>
-
-              {/* Gym Hours */}
-              <div style={{
-                background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
-                padding: isMobile ? '0.75rem' : '1rem',
-                borderRadius: '8px',
-                color: 'white'
-              }}>
-                <div style={{ fontSize: isMobile ? '1.2rem' : '1.5rem', marginBottom: '0.25rem' }}>💪</div>
-                <div style={{ fontSize: isMobile ? '0.7rem' : '0.8rem', opacity: 0.9, marginBottom: '0.25rem' }}>Gym Hours</div>
-                <input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={dailyStats.gymHours || ''}
-                  onChange={(e) => setDailyStats({...dailyStats, gymHours: parseFloat(e.target.value) || 0})}
-                  placeholder="0"
-                  style={{
-                    fontSize: isMobile ? '1rem' : '1.2rem',
-                    fontWeight: 'bold',
-                    background: 'rgba(255,255,255,0.2)',
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderRadius: '6px',
-                    padding: '0.4rem',
-                    width: '100%',
-                    color: 'white',
-                    textAlign: 'center'
-                  }}
-                />
-              </div>
-            </div>
-            
-            <NutritionStats items={items} logs={logs} />
-          </div>
-        )}
-      </div>
-
-      {/* Routine Section */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        marginBottom: '1rem',
-        overflow: 'hidden'
-      }}>
-        <button
-          onClick={() => toggleSection('routine')}
-          style={{
-            width: '100%',
-            padding: isMobile ? '0.75rem' : '1rem',
-            background: 'linear-gradient(135deg, #e8f5ff 0%, #d0e8ff 100%)',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: isMobile ? '1rem' : '1.2rem',
-            fontWeight: '700',
-            color: '#667eea'
-          }}
-        >
-          <span>🌅 Routine</span>
-          <span style={{ 
-            transition: 'transform 0.3s ease',
-            transform: sectionsExpanded.routine ? 'rotate(180deg)' : 'rotate(0deg)'
-          }}>
-            ▼
-          </span>
-        </button>
-        {sectionsExpanded.routine && (
-          <div style={{ padding: isMobile ? '0.75rem' : '1rem' }}>
-            {routineItems.map((item, index) => renderChecklistItem(item, index))}
-          </div>
-        )}
-      </div>
-
-      {/* Supplements Section */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        marginBottom: '1rem',
-        overflow: 'hidden'
-      }}>
-        <button
-          onClick={() => toggleSection('supplements')}
-          style={{
-            width: '100%',
-            padding: isMobile ? '0.75rem' : '1rem',
-            background: 'linear-gradient(135deg, #ffe8f0 0%, #ffd0e0 100%)',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: isMobile ? '1rem' : '1.2rem',
-            fontWeight: '700',
-            color: '#f5576c'
-          }}
-        >
-          <span>💊 Supplements</span>
-          <span style={{ 
-            transition: 'transform 0.3s ease',
-            transform: sectionsExpanded.supplements ? 'rotate(180deg)' : 'rotate(0deg)'
-          }}>
-            ▼
-          </span>
-        </button>
-        {sectionsExpanded.supplements && (
-          <div style={{ padding: isMobile ? '0.75rem' : '1rem' }}>
-            {supplementItems.map((item, index) => renderChecklistItem(item, index))}
-          </div>
-        )}
-      </div>
-
-      {/* Diet Section */}
-      <div style={{
-        background: 'white',
-        borderRadius: '12px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        marginBottom: '1rem',
-        overflow: 'hidden'
-      }}>
-        <button
-          onClick={() => toggleSection('diet')}
-          style={{
-            width: '100%',
-            padding: isMobile ? '0.75rem' : '1rem',
-            background: 'linear-gradient(135deg, #e8fff0 0%, #d0ffe0 100%)',
-            border: 'none',
-            cursor: 'pointer',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            fontSize: isMobile ? '1rem' : '1.2rem',
-            fontWeight: '700',
-            color: '#00f2fe'
-          }}
-        >
-          <span>🍽️ Diet</span>
-          <span style={{ 
-            transition: 'transform 0.3s ease',
-            transform: sectionsExpanded.diet ? 'rotate(180deg)' : 'rotate(0deg)'
-          }}>
-            ▼
-          </span>
-        </button>
-        {sectionsExpanded.diet && (
-          <div style={{ padding: isMobile ? '0.75rem' : '1rem' }}>
-            {dietItems.map((item, index) => renderChecklistItem(item, index))}
-          </div>
-        )}
-      </div>
-
-      {/* Daily Stats Section */}
-      <div style={{
-        background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
-        padding: isMobile ? '0.75rem' : '1rem',
-        borderRadius: '12px',
-        marginBottom: '1rem'
-      }}>
-        <h2 style={{ marginBottom: '1rem', fontSize: isMobile ? '1.1rem' : '1.3rem', color: '#2d3436' }}>✅ Daily Self-Check</h2>
-        
-        <div style={{ marginBottom: '0.75rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.85rem' : '0.95rem', color: '#2d3436' }}>
-            ⚡ Energy: {dailyStats.energyLevel}/10
-          </label>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            value={dailyStats.energyLevel}
-            onChange={(e) => setDailyStats({...dailyStats, energyLevel: Number(e.target.value)})}
-            style={{ width: '100%', height: '6px', accentColor: '#fdcb6e' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '0.75rem' }}>
-          <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.85rem' : '0.95rem', color: '#2d3436' }}>
-            🎯 Focus: {dailyStats.focusLevel}/10
-          </label>
-          <input
-            type="range"
-            min="1"
-            max="10"
-            value={dailyStats.focusLevel}
-            onChange={(e) => setDailyStats({...dailyStats, focusLevel: Number(e.target.value)})}
-            style={{ width: '100%', height: '6px', accentColor: '#fdcb6e' }}
-          />
-        </div>
-
-        <div style={{ marginBottom: '1rem' }}>
-          <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: isMobile ? '0.85rem' : '0.95rem', fontWeight: '600', color: '#2d3436' }}>
-            <input
-              type="checkbox"
-              checked={dailyStats.consistency}
-              onChange={(e) => setDailyStats({...dailyStats, consistency: e.target.checked})}
-              style={{ width: '18px', height: '18px', accentColor: '#fdcb6e' }}
-            />
-            💯 Consistency
-          </label>
-        </div>
-
-        <button
-          onClick={saveDailyStats}
-          style={{
-            width: '100%',
-            padding: isMobile ? '0.6rem' : '0.75rem',
-            background: '#2d3436',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: 'pointer',
-            fontWeight: '700',
-            fontSize: isMobile ? '0.85rem' : '0.95rem'
-          }}
-        >
-          💾 Save Stats & Streak
-        </button>
-      </div>
-
-      {/* Add Item Button */}
-      <button
-        onClick={() => setShowAddItem(true)}
-        style={{
-          width: '100%',
-          padding: isMobile ? '0.75rem' : '1rem',
-          background: 'linear-gradient(135deg, #4caf50 0%, #45a049 100%)',
-          color: 'white',
-          border: 'none',
-          borderRadius: '12px',
-          cursor: 'pointer',
-          fontWeight: '700',
-          fontSize: isMobile ? '0.9rem' : '1rem',
-          marginBottom: '1rem'
-        }}
-      >
-        ➕ Add Item
-      </button>
-
-      {showStreaks && <StreakCalendar onClose={() => setShowStreaks(false)} />}
-
-      {/* Notes Modal */}
-      {showNotesModal && (
+      {/* Sidebar Navigation (Desktop Only) */}
+      {!isMobile && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
+          width: '260px',
+          borderRight: `1px solid ${THEME.border}`,
+          padding: '1.5rem 0',
           display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '1rem'
+          flexDirection: 'column',
+          gap: '0.5rem',
+          flexShrink: 0
         }}>
-          <div style={{
-            background: 'white',
-            padding: isMobile ? '1.5rem' : '2rem',
-            borderRadius: '12px',
-            maxWidth: isMobile ? '100%' : '500px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <h2 style={{ marginBottom: '1rem', fontSize: isMobile ? '1.2rem' : '1.5rem' }}>📝 Note</h2>
-            <textarea
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              placeholder="Write your note..."
+          {[
+            { id: 'OVERVIEW', label: 'Overview', icon: '🏠' },
+            { id: 'ROUTINE', label: 'Routine', icon: '📅' },
+            { id: 'SUPPLEMENTS', label: 'Supplements', icon: '💊' },
+            { id: 'DIET', label: 'Diet & Nutrition', icon: '🍽️' },
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id as any)}
               style={{
-                width: '100%',
-                minHeight: isMobile ? '150px' : '200px',
-                padding: '0.75rem',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                fontSize: isMobile ? '0.85rem' : '0.95rem',
-                resize: 'vertical'
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.875rem',
+                justifyContent: 'flex-start',
+                padding: '0.875rem 1.5rem',
+                background: activeSection === item.id ? 'rgba(249, 115, 22, 0.1)' : 'transparent',
+                border: 'none',
+                borderLeft: activeSection === item.id ? `3px solid ${THEME.accent}` : '3px solid transparent',
+                color: activeSection === item.id ? THEME.accent : THEME.textMuted,
+                fontSize: '0.95rem',
+                fontWeight: activeSection === item.id ? '600' : '500',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                textAlign: 'left'
               }}
-            />
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
-              <button onClick={saveNote} style={{
-                flex: 1,
-                minWidth: '100px',
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Save
-              </button>
-              {todayNote && (
-                <button onClick={deleteNote} style={{
-                  flex: 1,
-                  minWidth: '100px',
-                  padding: isMobile ? '0.6rem' : '0.75rem',
-                  background: '#ff6b6b',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: '700',
-                  fontSize: isMobile ? '0.85rem' : '0.95rem'
-                }}>
-                  Delete
-                </button>
-              )}
-              <button onClick={() => setShowNotesModal(false)} style={{
-                flex: 1,
-                minWidth: '100px',
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#ccc',
-                color: '#333',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Cancel
-              </button>
-            </div>
-          </div>
+            >
+              <span style={{ fontSize: '1.2rem' }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
         </div>
       )}
 
-      {/* Macro Modal */}
-      {showMacroModal && viewingMacroItem && (
+      {/* Main Content Area */}
+      <div style={{ flex: 1, padding: isMobile ? '1rem' : '1.5rem', overflowY: 'auto', paddingBottom: isMobile ? '100px' : '2rem' }}>
+        {/* Header */}
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
           display: 'flex',
-          justifyContent: 'center',
+          justifyContent: 'space-between',
           alignItems: 'center',
-          zIndex: 1000,
-          padding: '1rem'
+          marginBottom: '2rem'
         }}>
-          <div style={{
-            background: 'white',
-            padding: isMobile ? '1.5rem' : '2rem',
-            borderRadius: '12px',
-            maxWidth: isMobile ? '100%' : '400px',
-            width: '100%'
-          }}>
-            <h2 style={{ marginBottom: '1rem', fontSize: isMobile ? '1.2rem' : '1.5rem', wordBreak: 'break-word' }}>📊 {viewingMacroItem.name}</h2>
-            {viewingMacroItem.metadata && (
-              <div style={{ background: '#f8f9ff', padding: '1rem', borderRadius: '8px', marginBottom: '1rem' }}>
-                <p style={{ margin: '0 0 0.5rem 0', fontSize: isMobile ? '0.8rem' : '0.9rem', color: '#666' }}>
-                  Per {(viewingMacroItem.metadata as any).unit}:
-                </p>
-                <div style={{ display: 'grid', gap: '0.5rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>
-                    <span>Calories:</span>
-                    <strong>{(viewingMacroItem.metadata as any).calories || 0}</strong>
+          <div>
+            <h1 style={{ fontSize: isMobile ? '1.5rem' : '2rem', fontWeight: '700', margin: 0 }}>
+              {activeSection === 'OVERVIEW' ? 'Daily Dashboard' :
+                activeSection === 'ROUTINE' ? 'Daily Routine' :
+                  activeSection === 'SUPPLEMENTS' ? 'Supplement Log' :
+                    activeSection === 'DIET' ? 'Diet & Nutrition' : 'Statistics'}
+            </h1>
+            <p style={{ color: THEME.textMuted, marginTop: '0.5rem' }}>
+              {formattedDate}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', gap: '1rem' }}>
+            <button
+              onClick={() => setShowStreaks(true)}
+              style={{
+                background: THEME.cardBg,
+                border: `1px solid ${THEME.border}`,
+                padding: '0.6rem 1rem',
+                borderRadius: '8px',
+                color: THEME.text,
+                fontWeight: '600',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem'
+              }}
+            >
+              🔥 <span style={{ display: isMobile ? 'none' : 'inline' }}>Streaks</span>
+            </button>
+            <button
+              onClick={() => setShowNotesModal(true)}
+              style={{
+                background: THEME.cardBg,
+                border: `1px solid ${THEME.border}`,
+                padding: '0.6rem 1rem',
+                borderRadius: '8px',
+                color: THEME.text,
+                fontWeight: '600',
+                cursor: 'pointer'
+              }}
+            >
+              📝 <span style={{ display: isMobile ? 'none' : 'inline' }}>Notes</span>
+            </button>
+            <button
+              onClick={() => setShowTodosModal(true)}
+              style={{
+                background: THEME.accent,
+                border: 'none',
+                padding: '0.6rem 1rem',
+                borderRadius: '8px',
+                color: 'white',
+                fontWeight: '600',
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)'
+              }}
+            >
+              ✅ <span style={{ display: isMobile ? 'none' : 'inline' }}>Todos</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Content Panels */}
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+
+          {/* OVERVIEW SECTION */}
+          {activeSection === 'OVERVIEW' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+
+              {/* Row 1: Self Check & Progress */}
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: '1.5rem' }}>
+                {/* Daily Self-Check Card */}
+                <div style={{
+                  background: 'rgba(24, 24, 27, 0.6)', // Glass
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderRadius: '16px',
+                  padding: '1.5rem',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                }}>
+                  <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.5rem' }}>
+                    📊 Daily Self-Check
+                  </h3>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '1.2rem' }}>
+                    {/* Energy Input */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem', color: THEME.textMuted }}>
+                        <span>⚡ Energy</span>
+                        <span style={{ color: THEME.accent, fontWeight: 'bold' }}>{dailyStats.energyLevel}/10</span>
+                      </div>
+                      <input
+                        type="range" min="1" max="10"
+                        value={dailyStats.energyLevel}
+                        onChange={(e) => setDailyStats({ ...dailyStats, energyLevel: parseInt(e.target.value) })}
+                        style={{ width: '100%', accentColor: THEME.accent }}
+                      />
+                    </div>
+
+                    {/* Focus Input */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem', color: THEME.textMuted }}>
+                        <span>🎯 Focus</span>
+                        <span style={{ color: THEME.accent, fontWeight: 'bold' }}>{dailyStats.focusLevel}/10</span>
+                      </div>
+                      <input
+                        type="range" min="1" max="10"
+                        value={dailyStats.focusLevel}
+                        onChange={(e) => setDailyStats({ ...dailyStats, focusLevel: parseInt(e.target.value) })}
+                        style={{ width: '100%', accentColor: THEME.accent }}
+                      />
+                    </div>
+
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer', padding: '0.75rem', background: THEME.activeBg, borderRadius: '8px' }}>
+                      <input
+                        type="checkbox"
+                        checked={dailyStats.consistency}
+                        onChange={(e) => setDailyStats({ ...dailyStats, consistency: e.target.checked })}
+                        style={{ width: '18px', height: '18px', accentColor: THEME.accent }}
+                      />
+                      <span>💯 Consistent today?</span>
+                    </label>
+
+                    <button
+                      onClick={saveDailyStats}
+                      style={{
+                        width: '100%',
+                        padding: '0.875rem',
+                        background: THEME.accent,
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        marginTop: '0.5rem'
+                      }}
+                    >
+                      💾 Save Stats
+                    </button>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>
-                    <span>Protein:</span>
-                    <strong>{(viewingMacroItem.metadata as any).protein || 0}g</strong>
+                </div>
+
+                {/* Progress Summary Card */}
+                <div style={{
+                  background: 'rgba(24, 24, 27, 0.6)', // Glass
+                  backdropFilter: 'blur(12px)',
+                  WebkitBackdropFilter: 'blur(12px)',
+                  borderRadius: '16px',
+                  padding: '1.5rem',
+                  border: '1px solid rgba(255, 255, 255, 0.08)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center'
+                }}>
+                  <h3 style={{ marginTop: 0, marginBottom: '1.5rem' }}>📈 Today's Progress</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
+                    <div style={{ background: THEME.activeBg, padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '2.5rem', fontWeight: '700', color: THEME.accent }}>
+                        {getCompletedCount().completed}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: THEME.textMuted }}>Completed Items</div>
+                    </div>
+                    <div style={{ background: THEME.activeBg, padding: '1rem', borderRadius: '12px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '2.5rem', fontWeight: '700', color: '#10b981' }}>
+                        {dailyStats.problemsSolved}
+                      </div>
+                      <div style={{ fontSize: '0.85rem', color: THEME.textMuted }}>Problems Solved</div>
+                    </div>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>
-                    <span>Carbs:</span>
-                    <strong>{(viewingMacroItem.metadata as any).carbs || 0}g</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>
-                    <span>Fats:</span>
-                    <strong>{(viewingMacroItem.metadata as any).fats || 0}g</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem', background: 'white', borderRadius: '6px', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>
-                    <span>Fiber:</span>
-                    <strong>{(viewingMacroItem.metadata as any).fiber || 0}g</strong>
+
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontSize: '0.9rem', color: THEME.textMuted }}>
+                      <span>Completion Rate</span>
+                      <span>{Math.round((getCompletedCount().completed / (getCompletedCount().total || 1)) * 100)}%</span>
+                    </div>
+                    <div style={{ width: '100%', height: '8px', background: THEME.activeBg, borderRadius: '4px', overflow: 'hidden' }}>
+                      <div style={{
+                        width: `${(getCompletedCount().completed / (getCompletedCount().total || 1)) * 100}%`,
+                        height: '100%',
+                        background: THEME.accent,
+                        borderRadius: '4px'
+                      }}></div>
+                    </div>
                   </div>
                 </div>
               </div>
-            )}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={() => { setShowMacroModal(false); openEditModal(viewingMacroItem); }} style={{
-                flex: 1,
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Edit
-              </button>
-              <button onClick={() => { setShowMacroModal(false); setViewingMacroItem(null); }} style={{
-                flex: 1,
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#ccc',
-                color: '#333',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
-{/* Add Item Modal - COMPLETE WITH ALL MACRO INPUTS */}
-      {showAddItem && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '1rem'
-        }}>
-          <div style={{
-            background: 'white',
-            padding: isMobile ? '1.5rem' : '2rem',
-            borderRadius: '12px',
-            maxWidth: isMobile ? '100%' : '500px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <h2 style={{ marginBottom: '1rem', fontSize: isMobile ? '1.2rem' : '1.5rem' }}>➕ Add Item</h2>
-            
-            {/* Item Name */}
-            <input
-              type="text"
-              value={newItem.name}
-              onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-              placeholder="Item name (e.g., 🏊 Swimming 30 min)"
-              style={{
-                width: '100%',
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                border: '2px solid #ddd',
-                borderRadius: '8px',
-                fontSize: isMobile ? '0.85rem' : '0.95rem',
-                marginBottom: '1rem'
-              }}
-            />
-            
-            {/* Category */}
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>Category</label>
-              <select
-                value={newItem.category}
-                onChange={(e) => setNewItem({...newItem, category: e.target.value as any})}
-                style={{
-                  width: '100%',
-                  padding: isMobile ? '0.6rem' : '0.75rem',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: isMobile ? '0.85rem' : '0.95rem'
-                }}
-              >
-                <option value="ROUTINE">Routine</option>
-                <option value="SUPPLEMENT">Supplement</option>
-                <option value="DIET">Diet</option>
-              </select>
-            </div>
+              {/* Row 2: Stats Inputs Grid */}
+              <div>
+                <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>⏱️ Daily Stats</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '1rem' }}>
+                  {/* Custom Stats (Now INCLUDES Core Stats) */}
+                  {customStats.map(stat => {
+                    const val = customStatValues.find(v => v.stat_def_id === stat.id)?.value || 0
+                    return (
+                      <div key={stat.id} style={{
+                        background: stat.color ? `linear-gradient(135deg, ${stat.color} 0%, ${stat.color}dd 100%)` : '#3b82f6',
+                        padding: '1.5rem',
+                        borderRadius: '20px',
+                        color: 'white',
+                        position: 'relative',
+                        overflow: 'hidden',
+                        boxShadow: `0 10px 15px -3px ${stat.color}33`,
+                        border: '1px solid rgba(255,255,255,0.1)'
+                      }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteCustomStat(stat.id) }}
+                          style={{
+                            position: 'absolute', top: '0.75rem', right: '0.75rem',
+                            background: 'rgba(0,0,0,0.2)', border: 'none', borderRadius: '50%',
+                            width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'pointer', color: 'white', fontSize: '0.8rem', opacity: 0.7,
+                            zIndex: 10
+                          }}
+                          title="Delete Stat"
+                        >
+                          ✕
+                        </button>
 
-            {/* ROUTINE - Exercise Checkbox */}
-            {newItem.category === 'ROUTINE' && (
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: isMobile ? '0.85rem' : '0.95rem', fontWeight: '600' }}>
-                  <input
-                    type="checkbox"
-                    checked={newItem.is_exercise}
-                    onChange={(e) => setNewItem({...newItem, is_exercise: e.target.checked})}
-                    style={{ width: '18px', height: '18px', accentColor: '#ff6b6b' }}
-                  />
-                  🔥 This burns calories (exercise)
-                </label>
-                
-                {/* Calorie Burn Input */}
-                {newItem.is_exercise && (
-                  <div style={{ marginTop: '0.75rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                      Calories Burned
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={newItem.calories_burn}
-                      onChange={(e) => setNewItem({...newItem, calories_burn: parseInt(e.target.value) || 0})}
-                      placeholder="e.g., 400"
-                      style={{
-                        width: '100%',
-                        padding: isMobile ? '0.6rem' : '0.75rem',
-                        border: '2px solid #ddd',
-                        borderRadius: '8px',
-                        fontSize: isMobile ? '0.85rem' : '0.95rem'
-                      }}
-                    />
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                          <div style={{ fontSize: '1.5rem' }}>{stat.emoji}</div>
+                          <div style={{ fontWeight: '700', fontSize: '1.1rem' }}>{stat.label}</div>
+                        </div>
+                        <input
+                          type="number"
+                          value={val}
+                          onChange={(e) => updateCustomStat(stat.id, e.target.value)}
+                          style={{
+                            width: '100%', background: 'rgba(0,0,0,0.2)', border: 'none',
+                            borderRadius: '12px', padding: '0.75rem', color: 'white',
+                            fontSize: '1.5rem', fontWeight: 'bold', textAlign: 'center'
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
+
+                  {/* Add Stat Button */}
+                  <button
+                    onClick={() => setShowAddStat(true)}
+                    style={{
+                      border: '2px dashed #3f3f46',
+                      borderRadius: '16px',
+                      background: 'transparent',
+                      color: '#a1a1aa',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '1rem',
+                      cursor: 'pointer',
+                      minHeight: '120px',
+                      fontSize: '1rem',
+                      fontWeight: '600'
+                    }}
+                  >
+                    <span style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>+</span>
+                    Add Stat
+                  </button>
+                </div>
+              </div>
+
+              {/* Row 3: Nutrition Summary */}
+              <div>
+                <h3 style={{ marginTop: 0, marginBottom: '1rem' }}>🍎 Nutrition Summary</h3>
+                <NutritionStats items={items} logs={logs} />
+              </div>
+
+            </div>
+          )}
+
+          {/* CHECKLIST SECTIONS (ROUTINE, SUPPLEMENTS, DIET) */}
+          {(activeSection === 'ROUTINE' || activeSection === 'SUPPLEMENTS' || activeSection === 'DIET') && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              {activeSection === 'DIET' && <NutritionStats items={items} logs={logs} />}
+
+              <div style={{
+                background: THEME.cardBg,
+                borderRadius: '16px',
+                border: `1px solid ${THEME.border}`,
+                overflow: 'hidden'
+              }}>
+                {items
+                  .filter(item => item.category === (activeSection === 'SUPPLEMENTS' ? 'SUPPLEMENT' : activeSection))
+                  .map((item) => {
+                    const isDone = logs.some(l => l.checklist_item_id === item.id && l.is_done)
+                    const log = logs.find(l => l.checklist_item_id === item.id)
+
+                    return (
+                      <div
+                        key={item.id}
+                        style={{
+                          padding: '1rem 1.5rem',
+                          borderBottom: `1px solid ${THEME.border}`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          background: isDone ? 'rgba(16, 185, 129, 0.05)' : 'transparent',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flex: 1 }}>
+                          <div
+                            onClick={() => toggleChecklistItem(item)}
+                            style={{
+                              width: '24px',
+                              height: '24px',
+                              borderRadius: '6px',
+                              border: isDone ? 'none' : `2px solid ${THEME.textMuted}`,
+                              background: isDone ? '#10b981' : 'transparent',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              color: 'white',
+                              flexShrink: 0
+                            }}
+                          >
+                            {isDone && '✓'}
+                          </div>
+
+                          <div>
+                            <div style={{
+                              fontWeight: '500',
+                              fontSize: '1rem',
+                              textDecoration: isDone ? 'line-through' : 'none',
+                              color: isDone ? THEME.textMuted : THEME.text
+                            }}>
+                              {item.name}
+                            </div>
+                            {item.metadata && (
+                              <div style={{ fontSize: '0.8rem', color: THEME.textMuted, marginTop: '2px' }}>
+                                {Object.entries(item.metadata).map(([k, v]) => `${k}: ${v}`).join(' • ')}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Diet Input Field */}
+                        {item.category === 'DIET' && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <input
+                              type="number"
+                              placeholder="0"
+                              value={log?.value || ''}
+                              onChange={(e) => updateDietValue(item, e.target.value)}
+                              style={{
+                                width: '80px',
+                                padding: '0.5rem',
+                                borderRadius: '6px',
+                                border: `1px solid ${THEME.border}`,
+                                background: THEME.activeBg,
+                                color: 'white',
+                                textAlign: 'center'
+                              }}
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); openEditModal(item); }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: THEME.accent,
+                              cursor: 'pointer',
+                              padding: '0.5rem'
+                            }}
+                          >
+                            ✏️
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); deleteItem(item.id) }}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: '#ef4444',
+                              opacity: 0.5,
+                              cursor: 'pointer',
+                              padding: '0.5rem'
+                            }}
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                {/* Empty State */}
+                {items.filter(item => item.category === (activeSection === 'SUPPLEMENTS' ? 'SUPPLEMENT' : activeSection)).length === 0 && (
+                  <div style={{ padding: '3rem', textAlign: 'center', color: THEME.textMuted }}>
+                    No items in this section yet.
                   </div>
                 )}
               </div>
-            )}
 
-            {/* Persistent Checkbox (not for Diet) */}
-            {newItem.category !== 'DIET' && (
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: isMobile ? '0.85rem' : '0.95rem', fontWeight: '600' }}>
-                  <input
-                    type="checkbox"
-                    checked={newItem.persistent}
-                    onChange={(e) => setNewItem({...newItem, persistent: e.target.checked})}
-                    style={{ width: '18px', height: '18px', accentColor: '#667eea' }}
-                  />
-                  💾 Save for future days
-                </label>
-              </div>
-            )}
-
-            {/* DIET - All Macro Inputs */}
-            {newItem.category === 'DIET' && (
-              <>
-                {/* Unit Type */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.85rem' : '0.95rem' }}>Unit Type</label>
-                  <select
-                    value={newItem.unit}
-                    onChange={(e) => setNewItem({...newItem, unit: e.target.value as any})}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  >
-                    <option value="gram">Per Gram</option>
-                    <option value="unit">Per Unit</option>
-                    <option value="scoop">Per Scoop</option>
-                  </select>
-                </div>
-
-                {/* Info Box */}
-                <div style={{ 
-                  background: '#f8f9ff', 
-                  padding: isMobile ? '0.75rem' : '1rem', 
-                  borderRadius: '8px', 
-                  marginBottom: '1rem',
-                  border: '1px solid #e0e7ff'
-                }}>
-                  <p style={{ margin: 0, fontSize: isMobile ? '0.75rem' : '0.85rem', color: '#666' }}>
-                    💡 Enter nutrition values per {newItem.unit === 'gram' ? '1 gram' : newItem.unit === 'unit' ? '1 unit' : '1 scoop'}
-                  </p>
-                </div>
-
-                {/* Calories */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Calories (per {newItem.unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={newItem.calories}
-                    onChange={(e) => setNewItem({...newItem, calories: parseFloat(e.target.value) || 0})}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Protein */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Protein (g per {newItem.unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newItem.protein}
-                    onChange={(e) => setNewItem({...newItem, protein: parseFloat(e.target.value) || 0})}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Carbs */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Carbs (g per {newItem.unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newItem.carbs}
-                    onChange={(e) => setNewItem({...newItem, carbs: parseFloat(e.target.value) || 0})}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Fiber */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Fiber (g per {newItem.unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newItem.fiber}
-                    onChange={(e) => setNewItem({...newItem, fiber: parseFloat(e.target.value) || 0})}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Fats */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Fats (g per {newItem.unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={newItem.fats}
-                    onChange={(e) => setNewItem({...newItem, fats: parseFloat(e.target.value) || 0})}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Buttons */}
-            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              <button onClick={addNewItem} style={{
-                flex: 1,
-                minWidth: '100px',
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Add
+              <button
+                onClick={() => {
+                  setNewItem({ ...newItem, category: activeSection === 'SUPPLEMENTS' ? 'SUPPLEMENT' : activeSection as any });
+                  setShowAddItem(true);
+                }}
+                style={{
+                  alignSelf: 'flex-start',
+                  background: 'transparent',
+                  border: `1px dashed ${THEME.textMuted}`,
+                  color: THEME.textMuted,
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: '500'
+                }}
+              >
+                + Add New Item
               </button>
-              <button onClick={() => setShowAddItem(false)} style={{
-                flex: 1,
-                minWidth: '100px',
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#ccc',
-                color: '#333',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Cancel
-              </button>
+            </div>
+          )}
+
+        </div>
+      </div>
+
+      {/* Modals */}
+      {showStreaks && <StreakCalendar onClose={() => setShowStreaks(false)} />}
+
+      {showAddStat && (
+        <AddStatModal
+          onClose={() => setShowAddStat(false)}
+          onAdded={() => loadChecklistData()}
+        />
+      )}
+
+      {showNotesModal && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{ background: THEME.cardBg, padding: '2rem', borderRadius: '16px', width: '100%', maxWidth: '600px', border: `1px solid ${THEME.border}` }}>
+            <h2 style={{ marginTop: 0 }}>Values & Notes</h2>
+            <textarea
+              value={noteContent}
+              onChange={(e) => setNoteContent(e.target.value)}
+              style={{
+                width: '100%', height: '200px', padding: '1rem',
+                background: THEME.activeBg, border: `1px solid ${THEME.border}`,
+                borderRadius: '8px', color: 'white', marginTop: '1rem',
+                resize: 'vertical'
+              }}
+              placeholder="Reflect on your day..."
+            />
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1.5rem', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowNotesModal(false)} style={{ padding: '0.75rem 1.5rem', background: 'transparent', border: `1px solid ${THEME.border}`, color: 'white', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+              <button onClick={saveNote} style={{ padding: '0.75rem 1.5rem', background: THEME.accent, border: 'none', color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' }}>Save Note</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* Edit Item Modal - COMPLETE WITH ALL MACRO EDITING */}
-      {showEditItem && editingItem && (
+      {showTodosModal && (
+        <TagBasedTodoModal
+          isOpen={showTodosModal}
+          onClose={() => setShowTodosModal(false)}
+          isMobile={isMobile}
+        />
+      )}
+
+      {showAddStat && (
+        <AddStatModal
+          onClose={() => setShowAddStat(false)}
+          onAdded={() => loadChecklistData()}
+        />
+      )}
+
+      {/* Add Item Modal */}
+      {showAddItem && (
         <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(0,0,0,0.6)',
-          backdropFilter: 'blur(5px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 1000,
-          padding: '1rem'
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
         }}>
-          <div style={{
-            background: 'white',
-            padding: isMobile ? '1.5rem' : '2rem',
-            borderRadius: '12px',
-            maxWidth: isMobile ? '100%' : '500px',
-            width: '100%',
-            maxHeight: '90vh',
-            overflow: 'auto'
-          }}>
-            <h2 style={{ marginBottom: '1rem', fontSize: isMobile ? '1.2rem' : '1.5rem' }}>
-              ✏️ Edit {editingItem.category === 'DIET' ? 'Diet' : editingItem.category === 'ROUTINE' && (editingItem.metadata as any)?.calories_burn ? 'Exercise' : ''} Item
-            </h2>
-            
-            {/* Item Name */}
-            <div style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>Item Name</label>
+          <div style={{ background: THEME.cardBg, padding: '2rem', borderRadius: '16px', width: '90%', maxWidth: '500px', border: `1px solid ${THEME.border}` }}>
+            <h2 style={{ marginTop: 0, color: 'white' }}>Add New Item</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
               <input
                 type="text"
-                value={editingItem.name}
-                onChange={(e) => setEditingItem({...editingItem, name: e.target.value})}
-                style={{
-                  width: '100%',
-                  padding: isMobile ? '0.6rem' : '0.75rem',
-                  border: '2px solid #ddd',
-                  borderRadius: '8px',
-                  fontSize: isMobile ? '0.85rem' : '0.95rem'
-                }}
+                placeholder="Item name"
+                value={newItem.name}
+                onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+                style={{ padding: '0.75rem', background: THEME.activeBg, border: `1px solid ${THEME.border}`, borderRadius: '8px', color: 'white' }}
               />
-            </div>
 
-            {/* ROUTINE - Calorie Burn Edit */}
-            {editingItem.category === 'ROUTINE' && (editingItem.metadata as any)?.calories_burn !== undefined && (
-              <div style={{ marginBottom: '1rem' }}>
-                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                  Calories Burned
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={(editingItem.metadata as any).calories_burn || 0}
-                  onChange={(e) => setEditingItem({
-                    ...editingItem, 
-                    metadata: {...editingItem.metadata, calories_burn: parseInt(e.target.value) || 0}
-                  })}
-                  style={{
-                    width: '100%',
-                    padding: isMobile ? '0.6rem' : '0.75rem',
-                    border: '2px solid #ddd',
-                    borderRadius: '8px',
-                    fontSize: isMobile ? '0.85rem' : '0.95rem'
-                  }}
-                />
+              {activeSection === 'DIET' && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                  <input type="number" placeholder="Calories" onChange={e => setNewItem({ ...newItem, calories: parseFloat(e.target.value) })} style={{ padding: '0.5rem', background: THEME.activeBg, border: `1px solid ${THEME.border}`, borderRadius: '8px', color: 'white' }} />
+                  <input type="number" placeholder="Protein" onChange={e => setNewItem({ ...newItem, protein: parseFloat(e.target.value) })} style={{ padding: '0.5rem', background: THEME.activeBg, border: `1px solid ${THEME.border}`, borderRadius: '8px', color: 'white' }} />
+                  <input type="number" placeholder="Carbs" onChange={e => setNewItem({ ...newItem, carbs: parseFloat(e.target.value) })} style={{ padding: '0.5rem', background: THEME.activeBg, border: `1px solid ${THEME.border}`, borderRadius: '8px', color: 'white' }} />
+                  <input type="number" placeholder="Fats" onChange={e => setNewItem({ ...newItem, fats: parseFloat(e.target.value) })} style={{ padding: '0.5rem', background: THEME.activeBg, border: `1px solid ${THEME.border}`, borderRadius: '8px', color: 'white' }} />
+                </div>
+              )}
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button onClick={() => setShowAddItem(false)} style={{ flex: 1, padding: '0.75rem', background: 'transparent', border: `1px solid ${THEME.border}`, color: 'white', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={addNewItem} style={{ flex: 1, padding: '0.75rem', background: THEME.accent, border: 'none', color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Add Item</button>
               </div>
-            )}
-
-            {/* DIET - All Macro Edit Fields */}
-            {editingItem.category === 'DIET' && editingItem.metadata && (
-              <>
-                <div style={{ 
-                  background: '#f8f9ff', 
-                  padding: isMobile ? '0.75rem' : '1rem', 
-                  borderRadius: '8px', 
-                  marginBottom: '1rem',
-                  border: '1px solid #e0e7ff'
-                }}>
-                  <p style={{ margin: 0, fontSize: isMobile ? '0.75rem' : '0.85rem', color: '#666' }}>
-                    💡 Update nutrition values per {(editingItem.metadata as any).unit}
-                  </p>
-                </div>
-
-                {/* Calories */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Calories (per {(editingItem.metadata as any).unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={(editingItem.metadata as any).calories || 0}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem, 
-                      metadata: {...editingItem.metadata, calories: parseFloat(e.target.value) || 0}
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Protein */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Protein (g per {(editingItem.metadata as any).unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={(editingItem.metadata as any).protein || 0}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem, 
-                      metadata: {...editingItem.metadata, protein: parseFloat(e.target.value) || 0}
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Carbs */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Carbs (g per {(editingItem.metadata as any).unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={(editingItem.metadata as any).carbs || 0}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem, 
-                      metadata: {...editingItem.metadata, carbs: parseFloat(e.target.value) || 0}
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Fiber */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Fiber (g per {(editingItem.metadata as any).unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={(editingItem.metadata as any).fiber || 0}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem, 
-                      metadata: {...editingItem.metadata, fiber: parseFloat(e.target.value) || 0}
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-
-                {/* Fats */}
-                <div style={{ marginBottom: '1rem' }}>
-                  <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: '600', fontSize: isMobile ? '0.8rem' : '0.9rem' }}>
-                    Fats (g per {(editingItem.metadata as any).unit})
-                  </label>
-                  <input
-                    type="number"
-                    step="0.001"
-                    value={(editingItem.metadata as any).fats || 0}
-                    onChange={(e) => setEditingItem({
-                      ...editingItem, 
-                      metadata: {...editingItem.metadata, fats: parseFloat(e.target.value) || 0}
-                    })}
-                    style={{
-                      width: '100%',
-                      padding: isMobile ? '0.6rem' : '0.75rem',
-                      border: '2px solid #ddd',
-                      borderRadius: '8px',
-                      fontSize: isMobile ? '0.85rem' : '0.95rem'
-                    }}
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Buttons */}
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button onClick={updateItem} style={{
-                flex: 1,
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#667eea',
-                color: 'white',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Update
-              </button>
-              <button onClick={() => { setShowEditItem(false); setEditingItem(null); }} style={{
-                flex: 1,
-                padding: isMobile ? '0.6rem' : '0.75rem',
-                background: '#ccc',
-                color: '#333',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: '700',
-                fontSize: isMobile ? '0.85rem' : '0.95rem'
-              }}>
-                Cancel
-              </button>
             </div>
           </div>
         </div>
       )}
-     <TagBasedTodoModal 
-  isOpen={showTodosModal}
-  onClose={() => setShowTodosModal(false)}
-  isMobile={isMobile}
-/>
 
-      <style>{`
-        @keyframes spin {
-          0% { transform: rotate(0deg); }
-          100% { transform: rotate(360deg); }
-        }
-        
-        @media (max-width: 768px) {
-          body {
-            font-size: 14px;
-          }
-        }
-      `}</style>
-      
+      {/* Edit Item Modal */}
+      {showEditItem && editingItem && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)',
+          display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000
+        }}>
+          <div style={{ background: THEME.cardBg, padding: '2rem', borderRadius: '16px', width: '90%', maxWidth: '500px', border: `1px solid ${THEME.border}` }}>
+            <h2 style={{ marginTop: 0, color: 'white' }}>Edit Item</h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1.5rem' }}>
+              <input
+                type="text"
+                placeholder="Item name"
+                value={editingItem.name}
+                onChange={(e) => setEditingItem({ ...editingItem, name: e.target.value })}
+                style={{ padding: '0.75rem', background: THEME.activeBg, border: `1px solid ${THEME.border}`, borderRadius: '8px', color: 'white' }}
+              />
+
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <button onClick={() => setShowEditItem(false)} style={{ flex: 1, padding: '0.75rem', background: 'transparent', border: `1px solid ${THEME.border}`, color: 'white', borderRadius: '8px', cursor: 'pointer' }}>Cancel</button>
+                <button onClick={updateItem} style={{ flex: 1, padding: '0.75rem', background: THEME.accent, border: 'none', color: 'white', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}>Update</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bottom Navigation (Mobile Only) */}
+      {isMobile && (
+        <div style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'rgba(9, 9, 11, 0.95)',
+          backdropFilter: 'blur(16px)',
+          borderTop: `1px solid ${THEME.border}`,
+          display: 'flex',
+          justifyContent: 'space-around',
+          padding: '0.75rem 0.5rem',
+          zIndex: 50,
+          paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))'
+        }}>
+          {[
+            { id: 'OVERVIEW', label: 'Home', icon: '🏠' },
+            { id: 'ROUTINE', label: 'Routine', icon: '📅' },
+            { id: 'SUPPLEMENTS', label: 'Vitamins', icon: '💊' },
+            { id: 'DIET', label: 'Diet', icon: '🍽️' },
+          ].map(item => (
+            <button
+              key={item.id}
+              onClick={() => setActiveSection(item.id as any)}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '4px',
+                background: 'transparent',
+                border: 'none',
+                color: activeSection === item.id ? THEME.accent : THEME.textMuted,
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                fontWeight: activeSection === item.id ? '600' : '500'
+              }}
+            >
+              <span style={{ fontSize: '1.4rem' }}>{item.icon}</span>
+              <span>{item.label}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
     </div>
   )
 }

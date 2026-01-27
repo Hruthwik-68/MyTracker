@@ -169,21 +169,9 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
     return days
   }
 
-  const getStreakColor = (day: number | null) => {
-    if (!day) return 'transparent'
 
-    const dateStr = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-    const streak = streaks.find(s => s.date === dateStr)
 
-    if (!streak) return '#fee2e2'
 
-    return getCompletionColor(dateStr)
-  }
-
-  const getCompletionColor = (dateStr: string) => {
-    const streak = streaks.find(s => s.date === dateStr)
-    return streak?.is_success ? '#4ade80' : '#fee2e2'
-  }
 
   const isStreakDay = (day: number | null) => {
     if (!day) return false
@@ -299,15 +287,18 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
       padding: isMobile ? '0.5rem' : '1rem'
     }}>
       <div style={{
-        background: 'white',
+        background: 'rgba(24, 24, 27, 0.7)', // Glass Dark
+        backdropFilter: 'blur(20px)',
+        border: '1px solid rgba(255, 255, 255, 0.1)',
         padding: isMobile ? '1rem' : '2rem',
-        borderRadius: isMobile ? '12px' : '16px',
+        borderRadius: isMobile ? '20px' : '24px',
         maxWidth: selectedDate && !isMobile ? '1000px' : isMobile ? '100%' : '650px',
         width: '100%',
         maxHeight: '95vh',
         overflow: 'auto',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        transition: 'all 0.3s ease'
+        boxShadow: '0 20px 60px rgba(0,0,0,0.5)',
+        transition: 'all 0.3s ease',
+        color: 'white'
       }}>
         <div style={{
           display: 'flex',
@@ -315,16 +306,19 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
           alignItems: 'center',
           marginBottom: isMobile ? '0.75rem' : '1.5rem'
         }}>
-          <h2 style={{ margin: 0, fontSize: isMobile ? '1.2rem' : '1.8rem' }}>🔥 Streak Calendar</h2>
+          <h2 style={{ margin: 0, fontSize: isMobile ? '1.2rem' : '1.8rem', color: 'white' }}>🔥 Streak Calendar</h2>
           <button
             onClick={onClose}
             style={{
-              background: 'none',
+              background: 'rgba(255,255,255,0.1)',
               border: 'none',
-              fontSize: '1.5rem',
+              borderRadius: '50%',
+              width: '32px', height: '32px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '1.2rem',
               cursor: 'pointer',
-              color: '#666',
-              padding: '0.5rem'
+              color: 'white',
+              transition: 'background 0.2s'
             }}
           >
             ✕
@@ -392,7 +386,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   textAlign: 'center',
                   fontWeight: 'bold',
                   fontSize: isMobile ? '0.65rem' : '0.875rem',
-                  color: '#666'
+                  color: '#a1a1aa'
                 }}>
                   {day}
                 </div>
@@ -434,17 +428,20 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                         alignItems: 'center',
                         borderRadius: isMobile ? '6px' : '8px',
                         background: day === null ? 'transparent' :
-                          isSelected ? '#667eea' :
-                            getStreakColor(day),
+                          isSelected ? '#60a5fa' :
+                            isStreakDay(day) ? 'rgba(74, 222, 128, 0.2)' : 'rgba(255, 255, 255, 0.05)',
                         color: day === null ? 'transparent' :
                           isSelected ? 'white' :
-                            isStreakDay(day) ? 'white' : '#dc2626',
+                            isStreakDay(day) ? '#4ade80' :
+                              (day && !isStreakDay(day) && new Date(dateStr!) < new Date()) ? '#f87171' : 'white',
                         fontWeight: 'bold',
                         fontSize: isMobile ? '0.7rem' : '0.9rem',
                         cursor: day ? 'pointer' : 'default',
                         transition: 'all 0.2s ease',
-                        border: isSelected ? `${isMobile ? '2px' : '3px'} solid #764ba2` : 'none',
-                        boxShadow: isSelected ? '0 4px 12px rgba(102, 126, 234, 0.3)' : 'none'
+                        border: isSelected ? '2px solid #3b82f6' :
+                          isStreakDay(day) ? '1px solid rgba(74, 222, 128, 0.3)' :
+                            '1px solid rgba(255, 255, 255, 0.05)',
+                        boxShadow: isSelected ? '0 0 15px rgba(59, 130, 246, 0.4)' : 'none'
                       }}
                     >
                       {day}
@@ -530,13 +527,14 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
             }}>
               <h3 style={{
                 marginBottom: '1rem',
-                color: '#667eea',
+                color: '#60a5fa', // Blue-400
                 fontSize: isMobile ? '0.9rem' : '1.3rem',
                 position: isMobile ? 'static' : 'sticky',
                 top: 0,
-                background: 'white',
+                background: 'rgba(24, 24, 27, 0.95)', // Match Modal Bg
                 paddingBottom: '0.5rem',
-                zIndex: 10
+                zIndex: 10,
+                backdropFilter: 'blur(10px)'
               }}>
                 📅 {new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-US', {
                   weekday: isMobile ? 'short' : 'long',
@@ -597,40 +595,40 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
                   {dayData.stats && (
                     <div style={{
                       marginBottom: '1rem',
-                      background: 'linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%)',
+                      background: 'rgba(255, 255, 255, 0.03)',
                       padding: isMobile ? '0.75rem' : '1rem',
                       borderRadius: isMobile ? '8px' : '12px',
-                      border: '1px solid #e0e7ff'
+                      border: '1px solid rgba(255, 255, 255, 0.1)'
                     }}>
-                      <h4 style={{ marginBottom: '0.75rem', color: '#333', fontSize: isMobile ? '0.85rem' : '1rem' }}>📊 Stats</h4>
+                      <h4 style={{ marginBottom: '0.75rem', color: '#e4e4e7', fontSize: isMobile ? '0.85rem' : '1rem' }}>📊 Stats</h4>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: isMobile ? '0.75rem' : '0.85rem' }}>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>⚡ Energy:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.energy_level}/10</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.energy_level}/10</strong>
                         </div>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>🎯 Focus:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.focus_level}/10</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.focus_level}/10</strong>
                         </div>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>💯 Consistent:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.consistency ? '✅' : '❌'}</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.consistency ? '✅' : '❌'}</strong>
                         </div>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>🧠 DSA:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.dsa_hours || 0}h</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.dsa_hours || 0}h</strong>
                         </div>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>📐 LLD:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.lld_hours || 0}h</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.lld_hours || 0}h</strong>
                         </div>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>✅ Problems:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.problems_solved || 0}</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.problems_solved || 0}</strong>
                         </div>
-                        <div style={{ padding: '0.5rem', background: 'white', borderRadius: '6px' }}>
+                        <div style={{ padding: '0.5rem', background: 'rgba(255,255,255,0.05)', borderRadius: '6px', color: '#d4d4d8' }}>
                           <span>💪 Gym:</span>
-                          <strong style={{ float: 'right' }}>{dayData.stats.gym_hours || 0}h</strong>
+                          <strong style={{ float: 'right', color: 'white' }}>{dayData.stats.gym_hours || 0}h</strong>
                         </div>
                       </div>
                     </div>

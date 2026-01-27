@@ -1,10 +1,10 @@
 import { Layout } from '../components/common/Layout'
-import { Plans } from '../components/plans/Plans'
+import { PlansDashboard } from '../components/plans/PlansDashboard'
 
 export const PlansPage = () => {
   return (
     <Layout>
-      <Plans />
+      <PlansDashboard />
     </Layout>
   )
 }

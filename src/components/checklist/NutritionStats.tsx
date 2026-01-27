@@ -21,7 +21,7 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     setLoading(true)
     try {
       const today = new Date().toISOString().split('T')[0]
-      
+
       // Just ensure stats row exists
       const { data } = await supabase
         .from('daily_stats')
@@ -87,7 +87,7 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     routineItems.forEach(item => {
       const log = logs.find(l => l.checklist_item_id === item.id)
       const metadata = item.metadata as any
-      
+
       if (log && log.is_done && metadata?.calories_burn) {
         caloriesBurned += metadata.calories_burn
       }
@@ -118,22 +118,25 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
     }}>
       {/* Net Calories */}
       <div style={{
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(102, 126, 234, 0.3)',
         padding: '1.5rem',
         borderRadius: '12px',
         color: 'white',
-        boxShadow: '0 4px 15px rgba(102,126,234,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         transition: 'all 0.3s ease',
         cursor: 'pointer'
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🔥</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Net Calories</div>
-        <div style={{ 
-          fontSize: '1.75rem', 
-          fontWeight: 'bold', 
+        <div style={{
+          fontSize: '1.75rem',
+          fontWeight: 'bold',
           marginTop: '0.5rem',
           color: netCalories < 0 ? '#ffcccb' : 'white'
         }}>
@@ -146,16 +149,19 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       {/* Protein */}
       <div style={{
-        background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+        background: 'linear-gradient(135deg, rgba(240, 147, 251, 0.2) 0%, rgba(245, 87, 108, 0.2) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(245, 87, 108, 0.3)',
         padding: '1.5rem',
         borderRadius: '12px',
         color: 'white',
-        boxShadow: '0 4px 15px rgba(245,87,108,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         transition: 'all 0.3s ease',
         cursor: 'pointer'
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💪</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Protein</div>
@@ -166,16 +172,19 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       {/* Carbs */}
       <div style={{
-        background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)',
+        background: 'linear-gradient(135deg, rgba(79, 172, 254, 0.2) 0%, rgba(0, 242, 254, 0.2) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(79, 172, 254, 0.3)',
         padding: '1.5rem',
         borderRadius: '12px',
         color: 'white',
-        boxShadow: '0 4px 15px rgba(79,172,254,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         transition: 'all 0.3s ease',
         cursor: 'pointer'
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🍞</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Carbs</div>
@@ -186,16 +195,19 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       {/* Fats */}
       <div style={{
-        background: 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)',
+        background: 'linear-gradient(135deg, rgba(255, 234, 167, 0.2) 0%, rgba(253, 203, 110, 0.2) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(253, 203, 110, 0.3)',
         padding: '1.5rem',
         borderRadius: '12px',
         color: 'white',
-        boxShadow: '0 4px 15px rgba(253,203,110,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         transition: 'all 0.3s ease',
         cursor: 'pointer'
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🥑</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Fats</div>
@@ -206,16 +218,19 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       {/* Fiber */}
       <div style={{
-        background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)',
+        background: 'linear-gradient(135deg, rgba(67, 233, 123, 0.2) 0%, rgba(56, 249, 215, 0.2) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(67, 233, 123, 0.3)',
         padding: '1.5rem',
         borderRadius: '12px',
         color: 'white',
-        boxShadow: '0 4px 15px rgba(67,233,123,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         transition: 'all 0.3s ease',
         cursor: 'pointer'
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>🌾</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Fiber</div>
@@ -226,16 +241,19 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
 
       {/* Water */}
       <div style={{
-        background: 'linear-gradient(135deg, #fa709a 0%, #fee140 100%)',
+        background: 'linear-gradient(135deg, rgba(250, 112, 154, 0.2) 0%, rgba(254, 225, 64, 0.2) 100%)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        border: '1px solid rgba(250, 112, 154, 0.3)',
         padding: '1.5rem',
         borderRadius: '12px',
         color: 'white',
-        boxShadow: '0 4px 15px rgba(250,112,154,0.3)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
         transition: 'all 0.3s ease',
         cursor: 'pointer'
       }}
-      onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
-      onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
+        onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-5px)'}
+        onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
       >
         <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>💧</div>
         <div style={{ fontSize: '0.875rem', opacity: 0.9 }}>Water</div>

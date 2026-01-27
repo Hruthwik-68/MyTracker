@@ -1,8 +1,8 @@
 export interface Plan {
   id: string
   user_id: string
-  type: 'CP' | 'DIET' | 'GYM'
   title: string
+  description?: string
   content: string
   created_at: string
   updated_at: string
@@ -128,4 +128,23 @@ export interface ChecklistTodo {
   is_done: boolean
   created_at: string
   original_date: string
+}
+
+export interface StatDefinition {
+  id: string
+  user_id: string
+  label: string
+  type: 'number' | 'range' | 'boolean'
+  emoji?: string
+  color?: string
+  created_at: string
+}
+
+export interface DailyStatValue {
+  id: string
+  user_id: string
+  date: string
+  stat_def_id: string
+  value: number
+  created_at: string
 }
