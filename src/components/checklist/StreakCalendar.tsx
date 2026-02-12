@@ -101,7 +101,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', dateStr)
-        .single()
+        .maybeSingle()
 
       const { data: checklistData } = await supabase
         .from('daily_checklists')
@@ -120,7 +120,7 @@ export const StreakCalendar = ({ onClose }: StreakCalendarProps) => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', dateStr)
-        .single()
+        .maybeSingle()
 
       // Fetch TODOs for this date
       const { data: todosData } = await supabase

@@ -28,7 +28,7 @@ export const NutritionStats = ({ items, logs }: NutritionStatsProps) => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', today)
-        .single()
+        .maybeSingle()
 
       if (!data) {
         await supabase

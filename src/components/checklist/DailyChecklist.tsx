@@ -90,7 +90,7 @@ export const DailyChecklist = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', today)
-        .single()
+        .maybeSingle()
 
       if (data) {
         setTodayNote(data)
@@ -223,7 +223,7 @@ export const DailyChecklist = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', today)
-        .single()
+        .maybeSingle()
 
       // Load Custom Stats Definitions
       const { data: customDefs } = await supabase
@@ -455,7 +455,7 @@ export const DailyChecklist = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', today)
-        .single()
+        .maybeSingle()
 
       const statsData = {
         energy_level: dailyStats.energyLevel,
@@ -487,7 +487,7 @@ export const DailyChecklist = () => {
         .select('*')
         .eq('user_id', user.id)
         .eq('date', today)
-        .single()
+        .maybeSingle()
 
       if (existingStreak) {
         await supabase
